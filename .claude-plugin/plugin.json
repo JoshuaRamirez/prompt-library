@@ -1,0 +1,23 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "prompt-library",
+  "version": "0.1.0",
+  "description": "CSV-backed prompt library: store, search, render, and reuse prompts by id",
+  "author": {
+    "name": "Joshua Ramirez",
+    "email": "joshua.ramirez@me.com"
+  },
+  "keywords": [
+    "prompts",
+    "library",
+    "csv",
+    "retrieval"
+  ],
+  "skills": [
+    "./"
+  ],
+  "commands": [
+    "./commands"
+  ],
+  "mcpServers": "./.mcp.json"
+}
