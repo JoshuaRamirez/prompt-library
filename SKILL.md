@@ -1,6 +1,6 @@
 ---
 name: prompt-library
-description: Store, find, and reuse saved prompts. Use when the user says "save this prompt", "add to my prompt library", "what prompts do I have", "find my prompt for X", "reuse that prompt", "prompt library", "list my prompts", "update that prompt", "fill in this prompt template", or refers to a prompt by an id/slug. Also use when the user produces a prompt worth keeping and asks where to put it.
+description: Store, find, and reuse saved prompts. Use when the user says "save this prompt", "add to my prompt library", "what prompts do I have", "find my prompt for X", "reuse that prompt", "prompt library", "list my prompts", "update that prompt", "fill in this prompt template", or refers to a prompt by an id/slug. Use PROACTIVELY, without being asked, in two cases: (1) the user writes a substantial reusable instruction, template, rubric, or system prompt — offer to save it; (2) the user's request resembles a prompt already listed in the session's prompt-library index — search for it and offer to reuse rather than re-deriving the instruction from scratch.
 ---
 
 # Prompt Library
