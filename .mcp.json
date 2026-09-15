@@ -2,7 +2,17 @@
   "mcpServers": {
     "prompt-library": {
       "command": "python3",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/server/mcp_server.py"],
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/shared_mcp.py",
+        "connect",
+        "--name",
+        "prompt-library",
+        "--env",
+        "PYTHONUNBUFFERED",
+        "--",
+        "python3",
+        "${CLAUDE_PLUGIN_ROOT}/server/mcp_server.py"
+      ],
       "env": {
         "PYTHONUNBUFFERED": "1"
       }
