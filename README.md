@@ -81,3 +81,18 @@ python3 ~/.claude/skills/prompt-library/tests/test_promptlib.py
 backend would buy, which backends are worth the complexity, the hybrid ranking
 scheme, index-freshness strategy, and an increment plan gated on beating the
 lexical baseline. The `SearchStrategy` port is the seam it plugs into.
+
+## How this plugin runs its MCP server (shared background service)
+
+Claude Code normally starts a private copy of a plugin's MCP server for every open session. This
+plugin instead runs **one shared copy per machine**: its MCP entry launches `shared_mcp.py connect`,
+which on first use creates a small Python environment under `~/.local/state/shared-mcp/`, registers a
+login-time background service (launchd on macOS, `systemd --user` on Linux, a detached process
+elsewhere) that runs the server once and serves it to every session over HTTP on `127.0.0.1` only,
+and then connects. Later sessions just connect. The first run prints a one-line notice.
+
+If a background service cannot be set up (no network, no service manager, an unusual OS), the
+original server runs directly as before — never a broken plugin. To opt out permanently set
+`SHARED_MCP_DISABLE=1` in your environment; to remove the service run
+`python3 <plugin>/shared_mcp.py stop --name prompt-library`. State, logs and the service definition live under
+`~/.local/state/shared-mcp/prompt-library/`. The kit is the single file `shared_mcp.py` vendored into this plugin; read it before trusting it.
