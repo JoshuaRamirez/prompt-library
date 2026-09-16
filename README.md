@@ -95,4 +95,4 @@ If a background service cannot be set up (no network, no service manager, an unu
 original server runs directly as before — never a broken plugin. To opt out permanently set
 `SHARED_MCP_DISABLE=1` in your environment; to remove the service run
 `python3 <plugin>/shared_mcp.py stop --name prompt-library`. State, logs and the service definition live under
-`~/.local/state/shared-mcp/prompt-library/`. The kit is the single file `shared_mcp.py` vendored into this plugin; read it before trusting it.
+`~/.local/state/shared-mcp/prompt-library/`. The kit is the single file `shared_mcp.py` vendored into this plugin; source, tests and design notes: https://github.com/JoshuaRamirez/shared-mcp
