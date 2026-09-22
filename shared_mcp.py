@@ -212,8 +212,7 @@ def start_mac(spec: dict) -> None:
   <key>ProgramArguments</key><array>{xml}</array>
   <key>WorkingDirectory</key><string>{_html.escape(spec.get("cwd") or str(HOME), quote=False)}</string>
   <key>ProcessType</key><string>Interactive</string>
-  <key>RunAtLoad</key><true/>
-  <key>KeepAlive</key><true/>
+  <key>KeepAlive</key><dict><key>PathState</key><dict><key>{_html.escape(str(Path(spec["launcher"]).resolve()), quote=False)}</key><true/></dict></dict>
   <key>ThrottleInterval</key><integer>5</integer>
   <key>StandardOutPath</key><string>{logp}</string>
   <key>StandardErrorPath</key><string>{logp}</string>
@@ -249,6 +248,7 @@ def start_systemd(spec: dict) -> None:
     logp = state_dir(spec["name"]) / "gateway.log"
     unit.write_text(f"""[Unit]
 Description=shared-mcp gateway: {spec['name']}
+ConditionPathExists={Path(spec["launcher"]).resolve()}
 [Service]
 ExecStart={' '.join(shlex.quote(a) for a in gateway_argv(spec))}
 WorkingDirectory={spec.get('cwd') or HOME}
@@ -492,7 +492,7 @@ def _ensure_locked(spec: dict, wait: float, restart_ok: bool, lk: "_Lock") -> di
         log(f"first run for '{name}': installing a shared background service so every Claude session uses ONE "
             f"copy of this server. It creates {STATE_ROOT}/venv and {state_dir(name)}, listens on 127.0.0.1:{port} only, "
             f"and is kept alive by {'launchd' if IS_MAC else 'systemd --user' if (not IS_WIN and _systemd_user_available()) else 'a detached process'}. "
-            f"Opt out: SHARED_MCP_DISABLE=1, or `python3 {Path(__file__).name} stop --name {name}`.")
+            f"Opt out: SHARED_MCP_DISABLE=1, or `python3 {shlex.quote(str(Path(__file__).resolve()))} stop --name {name}`.")
     else:
         log(f"starting gateway '{name}' on 127.0.0.1:{port}")
     ensure_venv(); lk.touch()
