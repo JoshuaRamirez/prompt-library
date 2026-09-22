@@ -1,5 +1,8 @@
 # prompt-library
 
+[![test](https://github.com/JoshuaRamirez/prompt-library/actions/workflows/test.yml/badge.svg)](https://github.com/JoshuaRamirez/prompt-library/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A user-scoped, locally installed Claude Code plugin. Stores prompts in a single
 CSV table keyed by `id`, and exposes them to Claude as MCP tools, to the shell as
 a CLI, and to the session as slash commands.
