@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>prompt-library: keep the prompts that work</title>
+    <meta name="description" content="A prompt library for Claude Code. Save a prompt once, find it by keyword, fill in its blanks and use it again. One CSV file on your machine." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Schibsted+Grotesk:wght@400;600;700;800&display=swap" />
+    <link rel="stylesheet" href="styles.css" />
+    <!-- Relative paths: GitHub Pages serves this under /prompt-library/. -->
+    <script type="importmap">
+      {
+        "imports": {
+          "vanilla-mvc": "./vendor/framework/index.js",
+          "vanilla-mvc/css": "./vendor/libraries/css/index.js",
+          "vanilla-mvc/fields": "./vendor/libraries/fields/index.js",
+          "vanilla-mvc/router": "./vendor/libraries/router/index.js",
+          "vanilla-mvc/templates": "./vendor/libraries/templates/index.js",
+          "vanilla-mvc/dist/": "./vendor/"
+        }
+      }
+    </script>
+    <script type="module" src="dist/main.js"></script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <noscript><p style="padding:2rem">prompt-library is a Claude Code plugin. Install it with
+      <code>/plugin marketplace add JoshuaRamirez/claude-code-plugins</code> then
+      <code>/plugin install prompt-library@RedJay</code>. Source: https://github.com/JoshuaRamirez/prompt-library</p></noscript>
+  </body>
+</html>

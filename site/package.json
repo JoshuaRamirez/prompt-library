@@ -1,0 +1,23 @@
+{
+  "name": "prompt-library-site",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "vendor": "vanilla-mvc vendor",
+    "build": "npm run vendor && tsc && node scripts/assemble.mjs",
+    "watch": "tsc --watch",
+    "start": "npm run build && node server.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && vanilla-mvc guide --check && node --test test/*.test.mjs",
+    "guide": "vanilla-mvc guide"
+  },
+  "dependencies": {
+    "vanilla-mvc": "github:JoshuaRamirez/vanilla-mvc#af84532"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "@types/node": "^22.20.3",
+    "typescript5": "npm:typescript@~5.9.3"
+  }
+}
