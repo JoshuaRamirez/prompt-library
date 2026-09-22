@@ -44,7 +44,11 @@ class TextFormatter:
             score = f" ({row['score']:.2f})" if "score" in row else ""
             title = str(row.get("title", "") or "")
             lines.append(f"{str(row.get('id','')):<{id_width}}  {title}{score}  {facets}".rstrip())
-        return "\n".join(lines)
+            if "prompt" in row:  # full records (--full) carry the body; summaries do not
+                body = str(row.get("prompt") or "")
+                lines.extend("    " + line for line in body.splitlines() or [""])
+                lines.append("")
+        return "\n".join(lines).rstrip("\n")
 
     def search(self, payload: Mapping[str, Any]) -> str:
         results = payload.get("results") or []

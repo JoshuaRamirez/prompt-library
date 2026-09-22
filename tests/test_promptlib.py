@@ -361,6 +361,22 @@ class CliTests(ServiceTestCase):
         code, _ = self._run("get", "absent")
         self.assertEqual(code, 2)
 
+    def test_list_full_prints_bodies(self) -> None:
+        self._run("add", "--title", "Multi", "--prompt", "first line\nsecond line")
+        _, summary = self._run("list")
+        _, full = self._run("list", "--full")
+        self.assertNotIn("second line", summary)
+        self.assertIn("    first line\n    second line", full)
+
+    def test_import_rejects_bad_input_without_traceback(self) -> None:
+        bad = self.csv_path.parent / "bad.json"
+        for content in ("{not json", "[1, 2]"):
+            bad.write_text(content, encoding="utf-8")
+            code, _ = self._run("import", str(bad))
+            self.assertEqual(code, 1)
+        code, _ = self._run("import", str(self.csv_path.parent / "missing.json"))
+        self.assertEqual(code, 1)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

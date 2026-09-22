@@ -1,8 +1,8 @@
 """`promptlib` command-line interface.
 
 Argument parsing and exit codes only; every operation delegates to
-`PromptLibraryService`. `--json` on any subcommand emits the raw service payload,
-which is also what the MCP tools return — one behaviour, two renderings.
+`PromptLibraryService`. `promptlib --json <command>` emits the raw service
+payload, which is also what the MCP tools return — one behaviour, two renderings.
 """
 
 from __future__ import annotations
@@ -205,9 +205,18 @@ class CommandRunner:
         return self._emit(self._service.stats(), self._text.stats)
 
     def _cmd_import(self, args: argparse.Namespace) -> int:
-        raw = sys.stdin.read() if args.path == "-" else open(args.path, encoding="utf-8").read()
-        rows = json.loads(raw)
-        if not isinstance(rows, list):
+        try:
+            if args.path == "-":
+                raw = sys.stdin.read()
+            else:
+                with open(args.path, encoding="utf-8") as handle:
+                    raw = handle.read()
+            rows = json.loads(raw)
+        except OSError as exc:
+            raise PromptLibraryError(f"cannot read {args.path}: {exc.strerror or exc}") from exc
+        except json.JSONDecodeError as exc:
+            raise PromptLibraryError(f"{args.path} is not valid JSON: {exc}") from exc
+        if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
             raise PromptLibraryError("import expects a JSON array of objects")
         payload = self._service.import_rows(rows)
         return self._emit(payload, lambda result: f"wrote {result['written']} prompts")
