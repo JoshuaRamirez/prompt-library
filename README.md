@@ -3,6 +3,9 @@
 [![test](https://github.com/JoshuaRamirez/prompt-library/actions/workflows/test.yml/badge.svg)](https://github.com/JoshuaRamirez/prompt-library/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
+**[joshuaramirez.github.io/prompt-library](https://joshuaramirez.github.io/prompt-library/)**: try the
+search and fill-in in your browser.
+
 A prompt library for [Claude Code](https://claude.com/claude-code). Save the
 prompts you reuse, find them again by keyword, fill in their `{{variables}}`, and
 apply them. They live in one CSV file on your machine, which you can read and edit
@@ -111,6 +114,7 @@ server/        MCP entrypoint (wired in .mcp.json)
 bin/promptlib  CLI entrypoint
 tests/         unittest suite, stdlib only
 docs/          SCHEMA.md, VECTOR-DB.md, diagrams/ (interactive D3)
+site/          the project page: a vanilla-mvc app, published by .github/workflows/pages.yml
 ```
 
 Lower layers know nothing of higher ones. The CLI and MCP server are two

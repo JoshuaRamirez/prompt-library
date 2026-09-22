@@ -4,6 +4,14 @@ All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- A project page at https://joshuaramirez.github.io/prompt-library/, built with
+  vanilla-mvc in `site/`. It has a live demo of search and fill-in that runs the
+  plugin's ranking in the browser. GitHub Actions now builds, tests and publishes
+  it with the diagrams.
+
 ## [0.1.2] — 2026-09-22
 
 ### Fixed

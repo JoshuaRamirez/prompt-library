@@ -26,6 +26,25 @@ python3 tests/test_promptlib.py
 Tests use temporary directories and never touch your real library. CI runs
 them on Python 3.9–3.13 on Linux and macOS.
 
+## The project page
+
+`site/` is the page at https://joshuaramirez.github.io/prompt-library/, a
+[vanilla-mvc](https://github.com/JoshuaRamirez/vanilla-mvc) app. It needs Node 22;
+nothing in it ships as part of the plugin's runtime. Read `site/AGENTS.md` before
+changing it.
+
+```sh
+cd site
+npm ci
+npm start    # http://127.0.0.1:4500/prompt-library/
+npm test     # architecture rules, and the demo driven in headless Chrome
+```
+
+The live demo ports the plugin's keyword ranking and `{{variable}}` rendering to
+TypeScript (`site/src/application/`). If you change either in `lib/promptlib/`,
+change the port to match. Pushing to `main` publishes the page and the diagrams
+through `.github/workflows/pages.yml`.
+
 ## Commit messages
 
 [Conventional Commits](https://www.conventionalcommits.org/) with a leading
