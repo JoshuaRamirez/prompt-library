@@ -2,3 +2,4 @@
 # ignores, so the plugin stays self-contained if extracted to its own repo.
 __pycache__/
 *.py[cod]
+.DS_Store
