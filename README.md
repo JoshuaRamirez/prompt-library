@@ -3,50 +3,65 @@
 [![test](https://github.com/JoshuaRamirez/prompt-library/actions/workflows/test.yml/badge.svg)](https://github.com/JoshuaRamirez/prompt-library/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A user-scoped, locally installed Claude Code plugin. Stores prompts in a single
-CSV table keyed by `id`, and exposes them to Claude as MCP tools, to the shell as
-a CLI, and to the session as slash commands.
+A prompt library for [Claude Code](https://claude.com/claude-code). Save the
+prompts you reuse, find them again by keyword, fill in their `{{variables}}`, and
+apply them. They live in one CSV file on your machine, which you can read and edit
+in any spreadsheet or text editor. Claude reaches them through MCP tools, you
+through slash commands or a shell CLI.
 
-The plugin itself is standard-library Python: no install step, no dependencies.
-(The optional shared-service launcher fetches one package; see
-[What it does to your machine](#what-it-does-to-your-machine).)
+The library, CLI and MCP server are standard-library Python with no
+dependencies. By default the MCP server runs as a shared background service,
+which does install packages. See
+[What it does to your machine](#what-it-does-to-your-machine).
 
 ## Requirements
 
 - [Claude Code](https://claude.com/claude-code)
-- Python 3.9 or newer, available as `python3`
+- Python 3.9 or newer, available as `python3`. The shared background service
+  needs 3.10 or newer (or [uv](https://docs.astral.sh/uv/)); on 3.9 the plugin
+  runs its server directly instead.
 - macOS or Linux. Windows is not supported: file locking uses `fcntl`.
 
 ## Install
 
-Clone into Claude Code's skills directory; it auto-loads as
-`prompt-library@skills-dir`:
+From the [RedJay marketplace](https://github.com/JoshuaRamirez/claude-code-plugins),
+inside Claude Code:
+
+```
+/plugin marketplace add JoshuaRamirez/claude-code-plugins
+/plugin install prompt-library@RedJay
+```
+
+To hack on it instead, clone it into your skills directory. Claude Code loads
+plugins there automatically, as `prompt-library@skills-dir`:
 
 ```sh
 git clone https://github.com/JoshuaRamirez/prompt-library ~/.claude/skills/prompt-library
 ```
 
-Then, inside Claude Code:
-
-```
-/reload-plugins                                   # load without restarting
-claude plugin disable prompt-library@skills-dir   # turn off
-```
+Run `/reload-plugins` to pick up edits without restarting.
 
 ## What it does to your machine
 
-- Creates `~/.claude/prompt-library/prompts.csv` on first write.
+- Creates `~/.claude/prompt-library/prompts.csv` (and a `.lock` file beside
+  it) at your first session start, when the index hook first reads the library.
 - Adds a SessionStart hook that injects a one-line-per-prompt index into each
   session (silent while the library is empty).
-- Runs its MCP server as one shared background service per machine — see
-  [below](#how-this-plugin-runs-its-mcp-server-shared-background-service).
-  Set `SHARED_MCP_DISABLE=1` to run a private copy per session instead.
+- **By default, runs its MCP server as one shared background service per
+  machine.** On first use it:
+  - creates a Python environment at `~/.local/state/shared-mcp/venv` and
+    installs `mcp>=1.10,<2` from PyPI into it (about 30 packages including
+    dependencies), using `uv` if you have it;
+  - registers a login-time service (a launchd agent on macOS, a `systemd --user`
+    unit on Linux) that keeps the server running and restarts it if it exits.
 
-Network use is limited to one step: setting up the shared service installs the
-`mcp` package (`mcp>=1.10,<2`) from PyPI into `~/.local/state/shared-mcp/venv`.
-With `SHARED_MCP_DISABLE=1`, or if that install fails, nothing is fetched and
-the server runs on the standard library alone. The shared service listens on
-`127.0.0.1` only. Your prompts never leave the machine.
+  To avoid all of that, set `SHARED_MCP_DISABLE=1` in your environment before
+  starting Claude Code. Each session then runs a private copy of the server on
+  the standard library alone, and nothing is downloaded. Details and removal
+  steps are [below](#how-this-plugin-runs-its-mcp-server-shared-background-service).
+
+The shared service listens on `127.0.0.1` only. Your prompts never leave the
+machine.
 
 ## Where the data lives
 
@@ -71,15 +86,15 @@ reinstalling or removing the plugin never destroys the library. Override with
 
 ## CLI
 
-```sh
-~/.claude/skills/prompt-library/bin/promptlib --help
-```
-
-Optionally put it on `$PATH`:
+The CLI is `bin/promptlib` inside the plugin directory:
 
 ```sh
-ln -s ~/.claude/skills/prompt-library/bin/promptlib ~/.local/bin/promptlib
+bin/promptlib --help
+bin/promptlib search code review
 ```
+
+To use it anywhere, symlink it onto your `$PATH`, e.g.
+`ln -s "$PWD/bin/promptlib" ~/.local/bin/promptlib` from the plugin directory.
 
 ## Structure
 
@@ -94,7 +109,7 @@ lib/promptlib/
   mcp/         stdio JSON-RPC transport, tool registry, protocol server
 server/        MCP entrypoint (wired in .mcp.json)
 bin/promptlib  CLI entrypoint
-tests/         43 unittest cases, stdlib only
+tests/         unittest suite, stdlib only
 docs/          SCHEMA.md, VECTOR-DB.md, diagrams/ (interactive D3)
 ```
 
@@ -111,7 +126,7 @@ in a browser; D3 loads from jsDelivr.
 ## Tests
 
 ```sh
-python3 ~/.claude/skills/prompt-library/tests/test_promptlib.py
+python3 tests/test_promptlib.py
 ```
 
 ## Later
@@ -132,8 +147,20 @@ and then connects. Later sessions just connect. The first run prints a one-line 
 
 If a background service cannot be set up (no network, no service manager, an unusual OS), the
 original server runs directly as before — never a broken plugin. To opt out permanently set
-`SHARED_MCP_DISABLE=1` in your environment; to remove the service run
-`python3 <plugin>/shared_mcp.py stop --name prompt-library`. State, logs and the service definition live under
+`SHARED_MCP_DISABLE=1` in your environment. To remove the service, run `stop` with the
+`shared_mcp.py` from your install (the first-run notice prints the exact command):
+
+```sh
+# marketplace install
+python3 "$(ls -d ~/.claude/plugins/cache/RedJay/prompt-library/*/ | tail -1)shared_mcp.py" stop --name prompt-library
+# skills-directory install
+python3 ~/.claude/skills/prompt-library/shared_mcp.py stop --name prompt-library
+```
+
+If you uninstall the plugin without doing this, the service stops restarting once its files are
+gone (it is kept alive only while `shared_mcp.py` exists), but its registration stays until you
+delete `~/Library/LaunchAgents/com.shared-mcp.prompt-library.plist` (macOS) or
+`~/.config/systemd/user/shared-mcp-prompt-library.service` (Linux). State, logs and the service definition live under
 `~/.local/state/shared-mcp/prompt-library/`. The kit is the single file `shared_mcp.py` vendored into this plugin; source, tests and design notes: https://github.com/JoshuaRamirez/shared-mcp
 
 ## Contributing

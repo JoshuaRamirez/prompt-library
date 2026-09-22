@@ -3,8 +3,7 @@
 Status: **not implemented**. This records the design so the seam stays honest
 and a later increment is an addition rather than a rewrite.
 
-Estimation follows the requirements baseline: atomic items carry **complexity**,
-compound items carry **weight**. No durations appear here.
+Sizes below are relative complexity, not time estimates.
 
 ---
 
@@ -60,9 +59,9 @@ rows.
 
 | Option | Complexity | Notes |
 |---|---|---|
-| **`sqlite-vec` sidecar** | Low | One file next to the CSV, no server, no daemon, brute-force KNN is exact at this scale. Highest value per unit complexity. **Recommended first increment.** |
+| **`sqlite-vec` sidecar** | Low | One file next to the CSV, no server, no daemon, brute-force KNN is exact at this scale. Highest value per unit complexity. **Recommended storage** once a vector index needs to persist (increment 4 below). |
 | **NumPy sidecar (`.npy` + ids)** | Very low | No dependency beyond NumPy; cosine over a dense matrix. Adequate below ~10⁴ rows. Viable if even SQLite is unwanted. |
-| **ChromaDB** | Medium | Persistent local collection, metadata filtering built in. Heavier dependency surface; this user has hit `chromadb`/`pydantic` version friction before — see the `mem-env-python` memory pack. |
+| **ChromaDB** | Medium | Persistent local collection, metadata filtering built in. Heavier dependency surface, with a history of `chromadb`/`pydantic` version conflicts. |
 | **Qdrant / Weaviate (local)** | High | Server process, container, lifecycle. Unjustified at personal-library scale. |
 | **LanceDB** | Medium | Columnar, embedded, good filtering. Reasonable alternative to `sqlite-vec`. |
 
@@ -148,7 +147,7 @@ only if the library grows past the point where a full hash sweep is noticeable.
 
 ## 7. Increment plan
 
-Ordered by descending complexity-to-value ratio. Each increment is independently
+Ordered by value per unit of complexity, cheapest proof first. Each increment is independently
 shippable and independently revertible.
 
 | # | Increment | Weight | Value |

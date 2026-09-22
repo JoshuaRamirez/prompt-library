@@ -67,13 +67,14 @@ promptlib add --title T --prompt TEXT [--tags a,b] [--set COLUMN=VALUE]...
 promptlib update <id> [--title T] [--prompt TEXT] [--set COLUMN=VALUE]...
 promptlib delete <id> [--yes]
 promptlib render <id> --set name=value...
-promptlib stats | promptlib path
+promptlib stats
+promptlib path                      # print the CSV location
 promptlib import <file.json>        # upsert an array of records by id
 ```
 
 `--prompt -` (or omitting `--prompt`) reads the body from stdin, which is the
-practical way to store a multi-line prompt from the shell. `--json` on any
-subcommand emits the same payload the MCP tools return.
+practical way to store a multi-line prompt from the shell. `promptlib --json <subcommand>`
+(the flag goes before the subcommand) emits the same payload the MCP tools return.
 
 ## Extending retrieval
 

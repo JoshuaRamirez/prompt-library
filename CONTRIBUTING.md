@@ -13,7 +13,9 @@ Issues and pull requests are welcome.
   nothing on any failure.
 - `shared_mcp.py` is vendored from
   [shared-mcp](https://github.com/JoshuaRamirez/shared-mcp); send changes to it
-  there rather than editing the copy here.
+  there rather than editing the copy here. The copy currently carries one local
+  patch not yet upstream: the background service is kept alive only while
+  `shared_mcp.py` exists, so uninstalling the plugin stops it restarting.
 
 ## Running the tests
 
@@ -26,4 +28,6 @@ them on Python 3.9–3.13 on Linux and macOS.
 
 ## Commit messages
 
-Conventional Commits, e.g. `feat(search): add tag boosting`.
+[Conventional Commits](https://www.conventionalcommits.org/) with a leading
+[gitmoji](https://gitmoji.dev/), e.g. `✨ feat(search): add tag boosting` or
+`🐛 fix(cli): print bodies with --full`.

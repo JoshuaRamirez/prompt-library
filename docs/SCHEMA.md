@@ -21,8 +21,8 @@ One table, one CSV file. Default location
 | `created_at` | library | ISO-8601 UTC, set once. |
 | `updated_at` | library | ISO-8601 UTC, set on every write. |
 
-`id`, `created_at`, and `updated_at` are refused as update inputs rather than
-silently ignored at the domain boundary (`Prompt.merged_with` drops them).
+`id`, `created_at`, and `updated_at` cannot be changed through an update: if
+supplied, they are silently dropped at the domain boundary (`Prompt.merged_with`).
 
 ## Open columns
 
