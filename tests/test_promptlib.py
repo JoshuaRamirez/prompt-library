@@ -310,6 +310,29 @@ class McpServerTests(ServiceTestCase):
         responses = self._exchange([{"jsonrpc": "2.0", "id": 1, "method": "nope/nope"}])
         self.assertEqual(responses[0]["error"]["code"], -32601)
 
+    def test_server_version_matches_plugin_manifest(self) -> None:
+        manifest = Path(__file__).resolve().parent.parent / ".claude-plugin" / "plugin.json"
+        responses = self._exchange([
+            {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2024-11-05"}},
+        ])
+        self.assertEqual(
+            responses[0]["result"]["serverInfo"]["version"],
+            json.loads(manifest.read_text(encoding="utf-8"))["version"],
+        )
+
+    def test_bad_limit_is_a_clean_tool_error(self) -> None:
+        responses = self._exchange([
+            {"jsonrpc": "2.0", "id": i, "method": "tools/call", "params": {"name": tool, "arguments": args}}
+            for i, (tool, args) in enumerate([
+                ("prompt_list", {"limit": "abc"}),
+                ("prompt_search", {"query": "x", "limit": -1}),
+            ], start=1)
+        ])
+        for response in responses:
+            text = response["result"]["content"][0]["text"]
+            self.assertTrue(response["result"]["isError"])
+            self.assertTrue(text.startswith("InvalidPromptError: limit must be a positive integer"), text)
+
     def test_malformed_line_does_not_kill_the_server(self) -> None:
         stdin = io.StringIO("{not json}\n" + json.dumps({"jsonrpc": "2.0", "id": 2, "method": "ping"}) + "\n")
         stdout = io.StringIO()
@@ -360,6 +383,20 @@ class CliTests(ServiceTestCase):
     def test_missing_prompt_exits_not_found(self) -> None:
         code, _ = self._run("get", "absent")
         self.assertEqual(code, 2)
+
+    def test_limited_search_reports_all_matches(self) -> None:
+        self._run("add", "--title", "Review code", "--prompt", "review a")
+        self._run("add", "--title", "Review docs", "--prompt", "review b")
+        _, out = self._run("search", "review", "--limit", "1")
+        self.assertTrue(out.startswith("2 of 2 prompts matched 'review' via keyword, showing the top 1"), out)
+
+    def test_nonpositive_limit_is_rejected(self) -> None:
+        code, _ = self._run("list", "--limit", "-1")
+        self.assertEqual(code, 1)
+
+    def test_empty_body_message_is_plain(self) -> None:
+        with self.assertRaisesRegex(InvalidPromptError, "^prompt body must not be empty$"):
+            self.service.add({"prompt": ""})
 
     def test_list_full_prints_bodies(self) -> None:
         self._run("add", "--title", "Multi", "--prompt", "first line\nsecond line")

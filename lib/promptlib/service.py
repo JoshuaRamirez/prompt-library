@@ -17,6 +17,7 @@ from .domain import prompt_schema as schema
 from .domain.prompt import Prompt
 from .domain.prompt_filter import PromptFilter
 from .domain.prompt_repository import PromptRepository
+from .errors import InvalidPromptError
 from .rendering.template_renderer import TemplateRenderer
 from .search.keyword_strategy import KeywordSearchStrategy
 from .search.search_strategy import SearchStrategy
@@ -69,6 +70,7 @@ class PromptLibraryService:
         include_body: bool = False,
     ) -> list[dict[str, Any]]:
         """List prompts, optionally narrowed by facets."""
+        _check_limit(limit)
         prompts = PromptFilter.build(tags=tags, category=category, model=model).apply(
             self._repository.list()
         )
@@ -94,15 +96,19 @@ class PromptLibraryService:
         Filtering runs before ranking so facets act as hard constraints, which is
         the behaviour a hybrid vector backend should preserve.
         """
+        _check_limit(limit)
         corpus = PromptFilter.build(tags=tags, category=category, model=model).apply(
             self._repository.list()
         )
         self._strategy.index(corpus)
-        hits = self._strategy.search(query, corpus, limit=limit)
+        # Rank everything, then cut, so `matched` reports all hits, not just the page.
+        ranked = self._strategy.search(query, corpus, limit=max(len(corpus), 1))
+        hits = ranked[:limit]
         return {
             "query": query,
             "strategy": self._strategy.name,
             "candidates": len(corpus),
+            "matched": len(ranked),
             "count": len(hits),
             "results": [hit.to_dict(include_body=include_body) for hit in hits],
         }
@@ -181,6 +187,14 @@ class PromptLibraryService:
         if self._paths is not None:
             return self._paths.csv_path
         return LibraryPaths.resolve().csv_path
+
+
+def _check_limit(limit: Any) -> None:
+    """A limit is absent or a positive integer; anything else is a caller error."""
+    if limit is None:
+        return
+    if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+        raise InvalidPromptError(f"limit must be a positive integer, got {limit!r}")
 
 
 __all__ = ["PromptLibraryService", "Prompt"]

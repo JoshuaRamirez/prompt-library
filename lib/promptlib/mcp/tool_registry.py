@@ -67,7 +67,7 @@ class ToolRegistry:
                 },
                 handler=lambda args: service.search(
                     query=str(args.get("query", "")),
-                    limit=int(args.get("limit", 10)),
+                    limit=args.get("limit", 10),
                     tags=args.get("tags"),
                     category=args.get("category"),
                     model=args.get("model"),

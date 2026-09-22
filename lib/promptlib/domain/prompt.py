@@ -168,4 +168,4 @@ class Prompt:
         if not self.id.strip():
             raise InvalidPromptError("prompt id must not be empty")
         if not self.prompt.strip():
-            raise InvalidPromptError(f"prompt {self.id!r} has an empty body")
+            raise InvalidPromptError("prompt body must not be empty")

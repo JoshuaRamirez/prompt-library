@@ -52,10 +52,13 @@ class TextFormatter:
 
     def search(self, payload: Mapping[str, Any]) -> str:
         results = payload.get("results") or []
+        matched = payload.get("matched", payload.get("count", 0))
         header = (
-            f"{payload.get('count', 0)} of {payload.get('candidates', 0)} prompts matched "
+            f"{matched} of {payload.get('candidates', 0)} prompts matched "
             f"'{payload.get('query', '')}' via {payload.get('strategy', '?')}"
         )
+        if payload.get("count", 0) < matched:
+            header += f", showing the top {payload.get('count', 0)}"
         return f"{header}\n{self.summaries(results)}"
 
     # -- records ---------------------------------------------------------
