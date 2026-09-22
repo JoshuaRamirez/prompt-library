@@ -13,7 +13,7 @@ export class InstallPanelController extends Controller<InstallPanelModel, Applic
   #clipboard!: Clipboard;
 
   protected createModel(): InstallPanelModel {
-    return { commands: COMMANDS, copyLabel: 'Copy commands' };
+    return { commands: COMMANDS.map((line) => line.split(' ')), copyLabel: 'Copy commands' };
   }
 
   protected override onCreate(): void {
