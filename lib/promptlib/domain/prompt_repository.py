@@ -44,16 +44,6 @@ class PromptRepository:
                 return prompt
         raise PromptNotFoundError(prompt_id)
 
-    def find(self, prompt_id: str) -> Prompt | None:
-        """Return one prompt or None."""
-        try:
-            return self.get(prompt_id)
-        except PromptNotFoundError:
-            return None
-
-    def ids(self) -> list[str]:
-        return [prompt.id for prompt in self.list()]
-
     def columns(self) -> tuple[str, ...]:
         """Current on-disk column set, declared columns first."""
         return self._table.schema().columns

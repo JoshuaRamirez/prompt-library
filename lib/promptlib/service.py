@@ -58,10 +58,6 @@ class PromptLibraryService:
     def csv_path(self) -> Path:
         return self._repository_table_path()
 
-    @property
-    def strategy_name(self) -> str:
-        return self._strategy.name
-
     # -- reads -----------------------------------------------------------
 
     def list(

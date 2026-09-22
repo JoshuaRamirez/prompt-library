@@ -29,14 +29,6 @@ class LibraryPaths:
 
     csv_path: Path
 
-    @property
-    def home(self) -> Path:
-        return self.csv_path.parent
-
-    @property
-    def backup_directory(self) -> Path:
-        return self.home / "backups"
-
     @classmethod
     def resolve(cls, csv_path: str | os.PathLike[str] | None = None) -> "LibraryPaths":
         """Apply the documented resolution order and return the paths."""
