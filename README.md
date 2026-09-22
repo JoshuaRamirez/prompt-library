@@ -118,10 +118,11 @@ renderings of one service, never two implementations.
 
 ## Diagrams
 
-`docs/diagrams/index.html` shows the plugin in three interactive D3 diagrams, all
-traced from the source: control flow per use case (Sankey), each use case broken
-into scenarios and steps (circle packing), and the data model (sunburst). Open it
-in a browser; D3 loads from jsDelivr.
+[**View the diagrams**](https://joshuaramirez.github.io/prompt-library/diagrams/):
+three interactive D3 views of the plugin, all traced from the source. They show
+control flow per use case (Sankey), each use case broken into scenarios and steps
+(circle packing), and the data model (sunburst). The source is in
+`docs/diagrams/`.
 
 ## Tests
 
