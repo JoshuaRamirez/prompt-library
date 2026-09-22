@@ -12,7 +12,7 @@ The plugin itself is standard-library Python: no install step, no dependencies.
 
 - [Claude Code](https://claude.com/claude-code)
 - Python 3.9 or newer, available as `python3`
-- macOS or Linux (Windows untested)
+- macOS or Linux. Windows is not supported: file locking uses `fcntl`.
 
 ## Install
 
@@ -92,11 +92,18 @@ lib/promptlib/
 server/        MCP entrypoint (wired in .mcp.json)
 bin/promptlib  CLI entrypoint
 tests/         43 unittest cases, stdlib only
-docs/          SCHEMA.md, VECTOR-DB.md
+docs/          SCHEMA.md, VECTOR-DB.md, diagrams/ (interactive D3)
 ```
 
 Lower layers know nothing of higher ones. The CLI and MCP server are two
 renderings of one service, never two implementations.
+
+## Diagrams
+
+`docs/diagrams/index.html` shows the plugin in three interactive D3 diagrams, all
+traced from the source: control flow per use case (Sankey), each use case broken
+into scenarios and steps (circle packing), and the data model (sunburst). Open it
+in a browser; D3 loads from jsDelivr.
 
 ## Tests
 

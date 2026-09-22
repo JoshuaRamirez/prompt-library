@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>prompt-library · how it works, in three diagrams</title>
+<link rel="stylesheet" href="viz.css">
+</head>
+<body>
+<main class="viz-root">
+  <header>
+    <h1>prompt-library, in three diagrams</h1>
+    <p class="sub">All three are traced from the plugin's source; file paths are in the tooltips and table views.
+      Use cases keep the same colour in every diagram.</p>
+  </header>
+  <nav class="pages" aria-label="Sections" style="margin-top:14px">
+    <a href="#flow">1 · Control flow (Sankey)</a>
+    <a href="#pack">2 · Use-case decomposition (circle packing)</a>
+    <a href="#sun">3 · Data model (sunburst)</a>
+  </nav>
+
+  <section class="diagram" id="flow">
+    <h2 class="title">1 · How each use case flows through the plugin</h2>
+    <p class="sub">Entry point → adapter → service method → component → storage. Band width counts distinct call paths,
+      so a use case that touches more of the system is wider. Hover a band or node for its file; click a use case to isolate it.</p>
+    <div class="legend" id="flow-legend" role="group" aria-label="Use cases (toggle to isolate)"></div>
+    <div class="chart" id="flow-chart"></div>
+    <ul class="notes">
+      <li>Every service is built by <code>PromptLibraryService.open()</code>, which also runs <code>PromptRepository.initialize()</code> (lock + create file with header). It happens once per process, not per use case, so it isn't drawn.</li>
+      <li>Writes re-read the CSV <em>inside</em> the lock, then replace the whole file atomically. That's why every write shows three storage paths.</li>
+      <li>Bulk import is only reachable from the CLI. There is no <code>prompt_import</code> MCP tool.</li>
+    </ul>
+    <details>
+      <summary>Table view: every traced path</summary>
+      <table id="flow-table"><thead><tr><th>Use case</th><th>Entry point</th><th>Adapter</th><th>Service method</th><th>Downstream chain</th></tr></thead><tbody></tbody></table>
+    </details>
+  </section>
+
+  <section class="diagram" id="pack">
+    <h2 class="title">2 · Functional decomposition of the use cases</h2>
+    <p class="sub">Use case → scenario → step. Each step is one leaf, so a larger circle means more steps.
+      Taken from <code>commands/*.md</code>, the <code>SKILL.md</code> working rules and the service code.
+      Click to zoom in; click the background to zoom out.</p>
+    <div class="legend" id="pack-legend"></div>
+    <div class="side-wrap">
+      <div class="chart" id="pack-chart"></div>
+      <aside class="panel" id="pack-panel" aria-live="polite"></aside>
+    </div>
+    <details>
+      <summary>Table view: every scenario and step</summary>
+      <table id="pack-table"><thead><tr><th>Use case</th><th>Scenario</th><th>Kind</th><th>Steps</th></tr></thead><tbody></tbody></table>
+    </details>
+  </section>
+
+  <section class="diagram" id="sun">
+    <h2 class="title">3 · How the data is logically structured</h2>
+    <p class="sub">Inner ring: the record, how it's stored, and the views callers get back. Outer rings: the columns, files
+      and fields inside each. Every leaf is one element, so arc size shows how much each part contains.
+      Click an arc to zoom; click the centre to go back.</p>
+    <div class="side-wrap">
+      <div class="chart" id="sun-chart"></div>
+      <aside class="panel" id="sun-panel" aria-live="polite"></aside>
+    </div>
+    <details>
+      <summary>Table view: every element</summary>
+      <table id="sun-table"><thead><tr><th>Part</th><th>Group</th><th>Element</th><th>Meaning</th></tr></thead><tbody></tbody></table>
+    </details>
+  </section>
+</main>
+<div class="tip" id="tip" hidden></div>
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12"></script>
+<script src="shared.js"></script>
+<script src="flow.js"></script>
+<script src="pack.js"></script>
+<script src="sunburst.js"></script>
+</body>
+</html>

@@ -16,3 +16,4 @@ First public release.
   `/prompt-edit`.
 - SessionStart hook that injects a compact index of stored prompts.
 - Optional shared background MCP service (vendored `shared_mcp.py`).
+- `docs/diagrams/`: interactive control-flow, use-case and data-model diagrams.

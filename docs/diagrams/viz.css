@@ -1,0 +1,111 @@
+/* Shared chart tokens. Categorical slots follow the validated dataviz reference
+   palette (light and dark stepped separately, never auto-flipped). */
+:root {
+  color-scheme: light;
+  --surface-0: #f4f3ef;
+  --surface-1: #fcfcfb;
+  --text-primary: #1a1a19;
+  --text-secondary: #55544e;
+  --text-muted: #7c7b73;
+  --rule: #e2e1da;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7; --s8: #e34948;
+  --node: #55544e;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --surface-0: #121211;
+    --surface-1: #1a1a19;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #96958c;
+    --rule: #34342f;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+    --node: #c3c2b7;
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--surface-0);
+  color: var(--text-primary);
+  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+}
+.viz-root {
+  max-width: 1480px;
+  margin: 24px auto;
+  padding: 24px 28px 28px;
+  background: var(--surface-1);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+}
+header h1 { margin: 0 0 4px; font-size: 20px; font-weight: 600; }
+header .sub { margin: 0; color: var(--text-secondary); max-width: 900px; }
+nav.pages { display: flex; gap: 6px; margin: 0 0 16px; flex-wrap: wrap; }
+nav.pages a {
+  color: var(--text-secondary); text-decoration: none; font-size: 13px;
+  padding: 4px 10px; border: 1px solid var(--rule); border-radius: 999px;
+}
+nav.pages a[aria-current="page"] { color: var(--text-primary); border-color: var(--text-muted); font-weight: 600; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 16px 0 8px; }
+.legend button, .legend span.key {
+  display: inline-flex; align-items: center; gap: 7px;
+  font: inherit; font-size: 13px; color: var(--text-primary);
+  background: none; border: 1px solid transparent; border-radius: 6px;
+  padding: 3px 8px 3px 4px; cursor: pointer;
+}
+.legend span.key { cursor: default; }
+.legend button:hover { border-color: var(--rule); }
+.legend button[aria-pressed="false"] { opacity: .38; }
+.legend .swatch { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+.legend .hint { color: var(--text-muted); font-size: 12px; align-self: center; }
+
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart text { fill: var(--text-primary); font-size: 12px; }
+.chart text.muted { fill: var(--text-muted); }
+.chart text.col-head {
+  fill: var(--text-muted); font-size: 11px; font-weight: 600;
+  letter-spacing: .06em; text-transform: uppercase;
+}
+
+.tip {
+  position: fixed; z-index: 10; pointer-events: none;
+  max-width: 360px; padding: 8px 10px;
+  background: var(--surface-1); color: var(--text-primary);
+  border: 1px solid var(--rule); border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.14);
+  font-size: 12.5px;
+}
+.tip b { font-weight: 600; }
+.tip .k { color: var(--text-muted); }
+.tip code, .notes code, td code { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.tip .row { display: flex; align-items: center; gap: 6px; }
+
+details { margin-top: 18px; }
+details summary { cursor: pointer; color: var(--text-secondary); }
+table { border-collapse: collapse; margin-top: 10px; font-size: 12.5px; width: 100%; }
+th, td { text-align: left; padding: 5px 10px 5px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { color: var(--text-muted); font-weight: 600; }
+.notes { margin-top: 14px; color: var(--text-secondary); font-size: 12.5px; }
+.notes li { margin: 3px 0; }
+.chart text.halo { paint-order: stroke; stroke: var(--surface-1); stroke-width: 3px; stroke-linejoin: round; }
+
+/* single-page layout */
+section.diagram { padding-top: 26px; margin-top: 26px; border-top: 1px solid var(--rule); }
+section.diagram:first-of-type { border-top: 0; margin-top: 8px; padding-top: 8px; }
+section.diagram h2.title { margin: 0 0 4px; font-size: 18px; font-weight: 600; }
+.side-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; align-items: start; }
+.panel { border-left: 1px solid var(--rule); padding-left: 18px; min-height: 300px; }
+.panel h2 { font-size: 15px; margin: 4px 0 2px; }
+.panel .crumbs { color: var(--text-muted); font-size: 12px; }
+.panel ol, .panel ul { padding-left: 18px; margin: 8px 0; }
+.panel li { margin: 4px 0; }
+.panel .kind, .panel dt { font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--text-muted); }
+.panel dl { margin: 8px 0; }
+.panel dd { margin: 2px 0 8px; }
+.chart circle, .chart path.arc { cursor: pointer; }
+@media (max-width: 1000px) { .side-wrap { grid-template-columns: 1fr; } .panel { border: 0; padding: 0; } }
