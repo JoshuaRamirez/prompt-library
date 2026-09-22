@@ -1,0 +1,29 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Unit tests
+        run: python tests/test_promptlib.py
+      - name: CLI smoke test
+        env:
+          PROMPT_LIBRARY_HOME: ${{ runner.temp }}/promptlib
+        run: |
+          bin/promptlib --help
+          bin/promptlib stats
+      - name: Compile check
+        run: python -m py_compile shared_mcp.py hooks/session_index.py server/mcp_server.py

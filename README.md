@@ -4,17 +4,46 @@ A user-scoped, locally installed Claude Code plugin. Stores prompts in a single
 CSV table keyed by `id`, and exposes them to Claude as MCP tools, to the shell as
 a CLI, and to the session as slash commands.
 
-Standard library Python only — no install step, no dependencies.
+The plugin itself is standard-library Python: no install step, no dependencies.
+(The optional shared-service launcher fetches one package; see
+[What it does to your machine](#what-it-does-to-your-machine).)
+
+## Requirements
+
+- [Claude Code](https://claude.com/claude-code)
+- Python 3.9 or newer, available as `python3`
+- macOS or Linux (Windows untested)
 
 ## Install
 
-Already installed: the plugin lives at `~/.claude/skills/prompt-library/` and
-auto-loads as `prompt-library@skills-dir`.
+Clone into Claude Code's skills directory; it auto-loads as
+`prompt-library@skills-dir`:
+
+```sh
+git clone https://github.com/JoshuaRamirez/prompt-library ~/.claude/skills/prompt-library
+```
+
+Then, inside Claude Code:
 
 ```
-/reload-plugins                              # load without restarting
+/reload-plugins                                   # load without restarting
 claude plugin disable prompt-library@skills-dir   # turn off
 ```
+
+## What it does to your machine
+
+- Creates `~/.claude/prompt-library/prompts.csv` on first write.
+- Adds a SessionStart hook that injects a one-line-per-prompt index into each
+  session (silent while the library is empty).
+- Runs its MCP server as one shared background service per machine — see
+  [below](#how-this-plugin-runs-its-mcp-server-shared-background-service).
+  Set `SHARED_MCP_DISABLE=1` to run a private copy per session instead.
+
+Network use is limited to one step: setting up the shared service installs the
+`mcp` package (`mcp>=1.10,<2`) from PyPI into `~/.local/state/shared-mcp/venv`.
+With `SHARED_MCP_DISABLE=1`, or if that install fails, nothing is fetched and
+the server runs on the standard library alone. The shared service listens on
+`127.0.0.1` only. Your prompts never leave the machine.
 
 ## Where the data lives
 
@@ -96,3 +125,12 @@ original server runs directly as before — never a broken plugin. To opt out pe
 `SHARED_MCP_DISABLE=1` in your environment; to remove the service run
 `python3 <plugin>/shared_mcp.py stop --name prompt-library`. State, logs and the service definition live under
 `~/.local/state/shared-mcp/prompt-library/`. The kit is the single file `shared_mcp.py` vendored into this plugin; source, tests and design notes: https://github.com/JoshuaRamirez/shared-mcp
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Changes are recorded in
+[CHANGELOG.md](CHANGELOG.md).
+
+## License
+
+[MIT](LICENSE) © 2026 Joshua Ramirez

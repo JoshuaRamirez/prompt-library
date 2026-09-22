@@ -7,6 +7,9 @@
     "name": "Joshua Ramirez",
     "email": "joshua.ramirez@me.com"
   },
+  "homepage": "https://github.com/JoshuaRamirez/prompt-library",
+  "repository": "https://github.com/JoshuaRamirez/prompt-library",
+  "license": "MIT",
   "keywords": [
     "prompts",
     "library",
