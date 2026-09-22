@@ -8,7 +8,7 @@ One table, one CSV file. Default location
 
 | Column | Managed | Meaning |
 |---|---|---|
-| `id` | library | Slug identifier, derived from `title` when not supplied. Immutable after creation. |
+| `id` | library | Identifier. A slug derived from `title` when not supplied; an explicit id is stored as given. Immutable after creation. |
 | `title` | caller | Short descriptive name. Highest search weight. |
 | `prompt` | caller | The prompt text. Required, non-empty. |
 | `tags` | caller | Comma-separated retrieval tags. |

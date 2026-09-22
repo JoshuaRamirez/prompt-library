@@ -4,6 +4,16 @@ All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.2] — 2026-09-22
+
+### Fixed
+- The MCP server reported version 0.1.0; a test now ties it to `plugin.json`.
+- A non-integer or non-positive `limit` (MCP tools and CLI) is rejected with a
+  clear error instead of an internal failure or silently wrong results.
+- `search` with `--limit` reported the number shown as the number matched; it now
+  reports all matches (`matched` in the JSON payload) and how many are shown.
+- An empty prompt body now says "prompt body must not be empty".
+
 ## [0.1.1] — 2026-09-22
 
 ### Fixed
@@ -34,5 +44,7 @@ First public release.
 - Slash commands: `/prompt-save`, `/prompt-find`, `/prompt-list`, `/prompt-use`,
   `/prompt-edit`.
 - SessionStart hook that injects a compact index of stored prompts.
-- Optional shared background MCP service (vendored `shared_mcp.py`).
+- Shared background MCP service, on by default (vendored `shared_mcp.py`): installs
+  the `mcp` package into a venv and registers a login service. Opt out with
+  `SHARED_MCP_DISABLE=1`.
 - `docs/diagrams/`: interactive control-flow, use-case and data-model diagrams.

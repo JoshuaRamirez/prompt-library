@@ -1,7 +1,7 @@
 {
   "name": "prompt-library",
-  "version": "0.1.1",
-  "description": "CSV-backed prompt library: store, search, render, and reuse prompts by id",
+  "version": "0.1.2",
+  "description": "CSV-backed prompt library: store, search, render and reuse prompts by id. Stdlib Python core; by default runs a shared background MCP service.",
   "author": {
     "name": "Joshua Ramirez",
     "email": "joshua.ramirez@me.com"

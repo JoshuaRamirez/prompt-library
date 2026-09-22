@@ -153,7 +153,7 @@ original server runs directly as before — never a broken plugin. To opt out pe
 
 ```sh
 # marketplace install
-python3 "$(ls -d ~/.claude/plugins/cache/RedJay/prompt-library/*/ | tail -1)shared_mcp.py" stop --name prompt-library
+python3 "$(ls -d ~/.claude/plugins/cache/RedJay/prompt-library/*/ | sort -V | tail -1)shared_mcp.py" stop --name prompt-library
 # skills-directory install
 python3 ~/.claude/skills/prompt-library/shared_mcp.py stop --name prompt-library
 ```
