@@ -29,6 +29,10 @@ class InvalidPromptError(PromptLibraryError):
     """A record failed validation before persistence."""
 
 
+class InvalidArgumentError(PromptLibraryError):
+    """A caller passed an argument the operation cannot accept."""
+
+
 class StoreCorruptionError(PromptLibraryError):
     """The CSV file is unreadable or structurally inconsistent."""
 

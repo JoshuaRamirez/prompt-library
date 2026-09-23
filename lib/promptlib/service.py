@@ -17,7 +17,7 @@ from .domain import prompt_schema as schema
 from .domain.prompt import Prompt
 from .domain.prompt_filter import PromptFilter
 from .domain.prompt_repository import PromptRepository
-from .errors import InvalidPromptError
+from .errors import InvalidArgumentError
 from .rendering.template_renderer import TemplateRenderer
 from .search.keyword_strategy import KeywordSearchStrategy
 from .search.search_strategy import SearchStrategy
@@ -131,13 +131,14 @@ class PromptLibraryService:
     def stats(self) -> dict[str, Any]:
         """Summarise the library: counts, facets, and storage location."""
         prompts = self._repository.list()
-        tag_counts: dict[str, int] = {}
-        category_counts: dict[str, int] = {}
+        # Filters ignore case, so the counts do too; each is shown as first spelled.
+        tag_counts = _CaseInsensitiveTally()
+        category_counts = _CaseInsensitiveTally()
         for prompt in prompts:
             for tag in prompt.tags:
-                tag_counts[tag] = tag_counts.get(tag, 0) + 1
+                tag_counts.add(tag)
             if prompt.category:
-                category_counts[prompt.category] = category_counts.get(prompt.category, 0) + 1
+                category_counts.add(prompt.category)
         return {
             "csv_path": str(self._repository_table_path()),
             "count": len(prompts),
@@ -147,10 +148,8 @@ class PromptLibraryService:
                 for column in self._repository.columns()
                 if column not in schema.DECLARED_COLUMNS
             ],
-            "tags": dict(sorted(tag_counts.items(), key=lambda item: (-item[1], item[0]))),
-            "categories": dict(
-                sorted(category_counts.items(), key=lambda item: (-item[1], item[0]))
-            ),
+            "tags": tag_counts.ranked(),
+            "categories": category_counts.ranked(),
             "total_prompt_chars": sum(len(prompt.prompt) for prompt in prompts),
             "search_strategy": self._strategy.name,
         }
@@ -159,29 +158,55 @@ class PromptLibraryService:
 
     def add(self, fields: Mapping[str, Any], prompt_id: str | None = None) -> dict[str, Any]:
         """Insert a prompt. Unknown keys become new CSV columns."""
-        prepared = dict(fields)
+        prepared = _checked_fields(fields, managed=(schema.CREATED_AT, schema.UPDATED_AT))
         prepared.setdefault(schema.VARIABLES, list(self._renderer.placeholders(str(prepared.get(schema.PROMPT, "")))))
-        return self._repository.add(prepared, prompt_id=prompt_id).to_dict()
+        return self._with_new_columns(lambda: self._repository.add(prepared, prompt_id=prompt_id))
 
     def update(self, prompt_id: str, changes: Mapping[str, Any]) -> dict[str, Any]:
         """Apply a partial update; unknown keys become new CSV columns."""
-        prepared = dict(changes)
-        if schema.PROMPT in prepared and schema.VARIABLES not in prepared:
-            prepared[schema.VARIABLES] = list(
-                self._renderer.placeholders(str(prepared[schema.PROMPT]))
-            )
-        return self._repository.update(prompt_id, prepared).to_dict()
+        prepared = _checked_fields(changes, managed=tuple(schema.MANAGED_COLUMNS))
+        if not prepared:
+            raise InvalidArgumentError("no changes supplied")
+        self._derive_variables(prepared)
+        return self._with_new_columns(lambda: self._repository.update(prompt_id, prepared))
 
     def delete(self, prompt_id: str) -> dict[str, Any]:
         """Remove a prompt and return the removed record."""
         return self._repository.delete(prompt_id).to_dict()
 
     def import_rows(self, rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
-        """Insert or replace a batch of records matched by id."""
-        written = self._repository.upsert_many(rows)
+        """Add new records and update existing ones, matched by id.
+
+        An existing prompt changes only in the fields a record supplies. The
+        managed columns (id aside, which does the matching) are ignored, so the
+        output of `list --full --json` imports back cleanly.
+        """
+        prepared = []
+        for number, row in enumerate(rows, start=1):
+            try:
+                fields = _checked_fields(row, managed=())
+            except InvalidArgumentError as exc:
+                raise InvalidArgumentError(f"record {number}: {exc}") from exc
+            self._derive_variables(fields)
+            prepared.append(fields)
+        written = self._repository.upsert_many(prepared)
         return {"written": len(written), "ids": [prompt.id for prompt in written]}
 
     # -- internals -------------------------------------------------------
+
+    def _derive_variables(self, fields: dict[str, Any]) -> None:
+        """A new body brings its own placeholder list unless one is supplied."""
+        if schema.PROMPT in fields and schema.VARIABLES not in fields:
+            fields[schema.VARIABLES] = list(self._renderer.placeholders(str(fields[schema.PROMPT] or "")))
+
+    def _with_new_columns(self, write) -> dict[str, Any]:
+        """Run a write and report any column it added, so a misspelt field is visible."""
+        before = set(self._repository.columns())
+        payload = write().to_dict()
+        added = [column for column in self._repository.columns() if column not in before]
+        if added:
+            payload["new_columns"] = added
+        return payload
 
     def _repository_table_path(self) -> Path:
         if self._paths is not None:
@@ -194,7 +219,38 @@ def _check_limit(limit: Any) -> None:
     if limit is None:
         return
     if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
-        raise InvalidPromptError(f"limit must be a positive integer, got {limit!r}")
+        raise InvalidArgumentError(f"limit must be a positive integer, got {limit!r}")
+
+
+def _checked_fields(fields: Mapping[str, Any], managed: Sequence[str]) -> dict[str, Any]:
+    """Copy caller fields, refusing managed columns and values a CSV cell cannot hold."""
+    checked: dict[str, Any] = {}
+    for key, value in fields.items():
+        if key in managed:
+            raise InvalidArgumentError(f"{key!r} is managed by the library and cannot be set")
+        if isinstance(value, Mapping) or (
+            isinstance(value, (list, tuple)) and key not in schema.LIST_COLUMNS
+        ):
+            raise InvalidArgumentError(f"{key!r} must be text, not {type(value).__name__}")
+        checked[key] = value
+    return checked
+
+
+class _CaseInsensitiveTally:
+    """Counts values ignoring case, remembering the first spelling of each."""
+
+    def __init__(self) -> None:
+        self._counts: dict[str, int] = {}
+        self._spelling: dict[str, str] = {}
+
+    def add(self, value: str) -> None:
+        key = value.casefold()
+        self._spelling.setdefault(key, value)
+        self._counts[key] = self._counts.get(key, 0) + 1
+
+    def ranked(self) -> dict[str, int]:
+        order = sorted(self._counts.items(), key=lambda item: (-item[1], item[0]))
+        return {self._spelling[key]: count for key, count in order}
 
 
 __all__ = ["PromptLibraryService", "Prompt"]

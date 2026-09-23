@@ -21,6 +21,7 @@ from promptlib.domain.prompt import Prompt  # noqa: E402
 from promptlib.domain.prompt_filter import PromptFilter  # noqa: E402
 from promptlib.errors import (  # noqa: E402
     DuplicatePromptError,
+    InvalidArgumentError,
     InvalidPromptError,
     PromptNotFoundError,
     RenderError,
@@ -331,7 +332,7 @@ class McpServerTests(ServiceTestCase):
         for response in responses:
             text = response["result"]["content"][0]["text"]
             self.assertTrue(response["result"]["isError"])
-            self.assertTrue(text.startswith("InvalidPromptError: limit must be a positive integer"), text)
+            self.assertTrue(text.startswith("InvalidArgumentError: limit must be a positive integer"), text)
 
     def test_malformed_line_does_not_kill_the_server(self) -> None:
         stdin = io.StringIO("{not json}\n" + json.dumps({"jsonrpc": "2.0", "id": 2, "method": "ping"}) + "\n")
@@ -340,6 +341,86 @@ class McpServerTests(ServiceTestCase):
         responses = [json.loads(line) for line in stdout.getvalue().splitlines()]
         self.assertEqual(responses[0]["error"]["code"], -32700)
         self.assertEqual(responses[1]["result"], {})
+
+
+
+class PolishRegressionTests(ServiceTestCase):
+    """Rough edges found in the 0.1.3 review, each pinned so it stays fixed."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.service.add(
+            {"title": "Summarise", "prompt": "Summarise {{doc}}", "tags": ["reading"], "category": "writing"},
+            prompt_id="summarise",
+        )
+
+    def test_import_changes_only_the_fields_it_supplies(self) -> None:
+        self.service.import_rows([{"id": "summarise", "tags": "new"}])
+        record = self.service.get("summarise")
+        self.assertEqual(record["tags"], ["new"])
+        self.assertEqual(record["title"], "Summarise")
+        self.assertEqual(record["prompt"], "Summarise {{doc}}")
+        self.assertEqual(record["category"], "writing")
+
+    def test_import_derives_variables_from_a_new_body(self) -> None:
+        self.service.import_rows([{"id": "n1", "prompt": "hi {{who}}"}, {"id": "summarise", "prompt": "Read {{url}}"}])
+        self.assertEqual(self.service.get("n1")["variables"], ["who"])
+        self.assertEqual(self.service.get("summarise")["variables"], ["url"])
+
+    def test_import_names_the_record_that_failed_and_writes_nothing(self) -> None:
+        with self.assertRaisesRegex(InvalidPromptError, r"^record 2 \(empty\): prompt body must not be empty$"):
+            self.service.import_rows([{"id": "ok", "prompt": "fine"}, {"id": "empty", "title": "x"}])
+        self.assertEqual([row["id"] for row in self.service.list()], ["summarise"])
+
+    def test_import_round_trips_the_full_json_listing(self) -> None:
+        exported = self.service.list(include_body=True)
+        self.service.import_rows(exported)
+        self.assertEqual(self.service.get("summarise")["title"], "Summarise")
+
+    def test_update_refuses_managed_columns(self) -> None:
+        with self.assertRaisesRegex(InvalidArgumentError, "'id' is managed"):
+            self.service.update("summarise", {"id": "renamed"})
+        with self.assertRaisesRegex(InvalidArgumentError, "'created_at' is managed"):
+            self.service.add({"prompt": "x", "created_at": "2000-01-01"})
+
+    def test_empty_update_is_an_error(self) -> None:
+        with self.assertRaisesRegex(InvalidArgumentError, "no changes supplied"):
+            self.service.update("summarise", {})
+
+    def test_object_values_are_refused(self) -> None:
+        with self.assertRaisesRegex(InvalidArgumentError, "'notes' must be text, not dict"):
+            self.service.update("summarise", {"notes": {"k": 1}})
+
+    def test_writes_report_new_columns(self) -> None:
+        self.assertEqual(self.service.update("summarise", {"team": "docs"})["new_columns"], ["team"])
+        self.assertNotIn("new_columns", self.service.update("summarise", {"team": "ops"}))
+
+    def test_blank_extras_are_not_reported(self) -> None:
+        self.service.update("summarise", {"team": "docs"})
+        self.assertNotIn("extras", self.service.add({"prompt": "other"}))
+
+    def test_stats_count_tags_and_categories_ignoring_case(self) -> None:
+        self.service.add({"prompt": "b", "tags": ["Reading"], "category": "Writing"})
+        stats = self.service.stats()
+        self.assertEqual(stats["tags"], {"reading": 2})
+        self.assertEqual(stats["categories"], {"writing": 2})
+
+    def test_render_reports_values_nothing_used(self) -> None:
+        result = self.service.render("summarise", {"dco": "typo"})
+        self.assertEqual(result["unused"], ["dco"])
+        self.assertEqual(result["unfilled"], ["doc"])
+
+    def test_unreadable_files_are_store_errors(self) -> None:
+        from promptlib.errors import StoreCorruptionError
+
+        binary = Path(self._tmp.name) / "binary.csv"
+        binary.write_bytes(b"id,prompt\n\xff\xfe,x\n")
+        with self.assertRaisesRegex(StoreCorruptionError, "not UTF-8 text"):
+            PromptLibraryService.open(binary).list()
+        foreign = Path(self._tmp.name) / "foreign.csv"
+        foreign.write_text("name,email\nx,y\n", encoding="utf-8")
+        with self.assertRaisesRegex(StoreCorruptionError, "no 'id' column"):
+            PromptLibraryService.open(foreign).list()
 
 
 class CliTests(ServiceTestCase):

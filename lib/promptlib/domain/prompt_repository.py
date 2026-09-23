@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any, Iterable, Mapping, Sequence
 
 from ..clock import Clock
-from ..errors import DuplicatePromptError, PromptNotFoundError
+from ..errors import DuplicatePromptError, InvalidPromptError, PromptNotFoundError
 from ..identifiers import SlugFactory
 from ..storage.csv_table import CsvTable
 from . import prompt_schema as schema
@@ -90,29 +90,38 @@ class PromptRepository:
             return removed
 
     def upsert_many(self, records: Iterable[Mapping[str, Any]]) -> list[Prompt]:
-        """Insert or replace a batch, matching on id. Used by import."""
+        """Insert new records and update existing ones, matching on id. Used by import.
+
+        An update changes only the fields the record supplies, so importing
+        `{"id": "x", "tags": "new"}` retags x and leaves the rest of it alone.
+        Nothing is written unless every record is valid.
+        """
         with self._table.lock():
             existing = self.list()
             by_id = {prompt.id: position for position, prompt in enumerate(existing)}
             now = self._clock.now_iso()
             written: list[Prompt] = []
-            for fields in records:
+            for number, fields in enumerate(records, start=1):
                 candidate = Prompt.from_fields(fields)
                 target_id = candidate.id.strip() or self._slugs.unique(
                     candidate.title or candidate.prompt[:60], by_id.keys()
                 )
-                if target_id in by_id:
-                    position = by_id[target_id]
-                    merged = existing[position].merged_with(candidate.to_row()).stamped(updated_at=now)
-                    merged.validate()
-                    existing[position] = merged
-                    written.append(merged)
-                else:
-                    record = candidate.with_id(target_id).stamped(created_at=now, updated_at=now)
-                    record.validate()
-                    by_id[target_id] = len(existing)
-                    existing.append(record)
-                    written.append(record)
+                try:
+                    if target_id in by_id:
+                        position = by_id[target_id]
+                        changes = {key: value for key, value in fields.items() if key != schema.ID}
+                        merged = existing[position].merged_with(changes).stamped(updated_at=now)
+                        merged.validate()
+                        existing[position] = merged
+                        written.append(merged)
+                    else:
+                        record = candidate.with_id(target_id).stamped(created_at=now, updated_at=now)
+                        record.validate()
+                        by_id[target_id] = len(existing)
+                        existing.append(record)
+                        written.append(record)
+                except InvalidPromptError as exc:
+                    raise InvalidPromptError(f"record {number} ({target_id}): {exc}") from exc
             self._table.write_all([row.to_row() for row in existing])
             return written
 

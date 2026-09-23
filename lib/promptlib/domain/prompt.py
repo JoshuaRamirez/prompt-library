@@ -117,8 +117,9 @@ class Prompt:
             schema.CREATED_AT: self.created_at,
             schema.UPDATED_AT: self.updated_at,
         }
-        if self.extras:
-            payload["extras"] = dict(self.extras)
+        extras = {key: value for key, value in self.extras.items() if value}
+        if extras:
+            payload["extras"] = extras
         return payload
 
     def summary(self) -> dict[str, Any]:

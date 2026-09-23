@@ -61,7 +61,13 @@ class CsvTable:
                 reader = csv.DictReader(handle)
                 if reader.fieldnames is None:
                     return []
+                if self._key_column not in reader.fieldnames:
+                    raise StoreCorruptionError(
+                        f"{self._path} has no {self._key_column!r} column, so it is not a prompt library"
+                    )
                 return [schema.normalize(row) for row in reader]
+        except UnicodeDecodeError as exc:
+            raise StoreCorruptionError(f"{self._path} is not UTF-8 text") from exc
         except (OSError, csv.Error) as exc:
             raise StoreCorruptionError(f"cannot read {self._path}: {exc}") from exc
 
@@ -101,5 +107,7 @@ class CsvTable:
             with self._path.open("r", encoding="utf-8", newline="") as handle:
                 reader = csv.reader(handle)
                 return next(reader, [])
+        except UnicodeDecodeError as exc:
+            raise StoreCorruptionError(f"{self._path} is not UTF-8 text") from exc
         except (OSError, csv.Error) as exc:
             raise StoreCorruptionError(f"cannot read header of {self._path}: {exc}") from exc

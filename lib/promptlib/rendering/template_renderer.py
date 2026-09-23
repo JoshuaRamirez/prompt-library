@@ -23,12 +23,15 @@ class RenderResult:
     text: str
     substituted: tuple[str, ...]
     unfilled: tuple[str, ...]
+    #: Values supplied for names the template does not contain (often a typo).
+    unused: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, object]:
         return {
             "text": self.text,
             "substituted": list(self.substituted),
             "unfilled": list(self.unfilled),
+            "unused": list(self.unused),
         }
 
 
@@ -67,4 +70,8 @@ class TemplateRenderer:
         text = _PLACEHOLDER.sub(replace, template)
         if strict and unfilled:
             raise RenderError(f"missing values for: {', '.join(unfilled)}")
-        return RenderResult(text=text, substituted=tuple(substituted), unfilled=tuple(unfilled))
+        known = set(self.placeholders(template))
+        unused = tuple(name for name in values if name not in known)
+        return RenderResult(
+            text=text, substituted=tuple(substituted), unfilled=tuple(unfilled), unused=unused
+        )
