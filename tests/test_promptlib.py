@@ -334,6 +334,35 @@ class McpServerTests(ServiceTestCase):
             self.assertTrue(response["result"]["isError"])
             self.assertTrue(text.startswith("InvalidArgumentError: limit must be a positive integer"), text)
 
+    def _call(self, tool: str, args: dict) -> tuple[bool, str]:
+        response = self._exchange([
+            {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": tool, "arguments": args}}
+        ])[0]
+        return bool(response["result"].get("isError")), response["result"]["content"][0]["text"]
+
+    def test_tool_arguments_are_checked(self) -> None:
+        self.service.add({"prompt": "Diff {{diff}}", "tags": ["git"]}, prompt_id="commit")
+        cases = [
+            ("prompt_search", {}, "InvalidArgumentError: missing required argument: query"),
+            ("prompt_get", {"id": " "}, "InvalidArgumentError: missing required argument: id"),
+            ("prompt_render", {"id": "commit", "strict": "yes"}, "InvalidArgumentError: strict must be true or false"),
+            ("prompt_render", {"id": "commit", "values": "diff=abc"}, "InvalidArgumentError: values must be an object"),
+            ("prompt_list", {"tags": 5}, "InvalidArgumentError: tags must be a list of strings"),
+        ]
+        for tool, args, expected in cases:
+            is_error, text = self._call(tool, args)
+            self.assertTrue(is_error, (tool, args))
+            self.assertTrue(text.startswith(expected), text)
+
+    def test_string_forms_are_read_sensibly(self) -> None:
+        self.service.add({"prompt": "Diff {{diff}}", "tags": ["git"]}, prompt_id="commit")
+        is_error, text = self._call("prompt_render", {"id": "commit", "values": {}, "strict": "false"})
+        self.assertFalse(is_error, text)
+        is_error, text = self._call("prompt_list", {"tags": "git"})
+        self.assertEqual([row["id"] for row in json.loads(text)["prompts"]], ["commit"])
+        is_error, text = self._call("prompt_update", {"id": "commit", "tags": "git, vcs"})
+        self.assertEqual(json.loads(text)["tags"], ["git", "vcs"])
+
     def test_malformed_line_does_not_kill_the_server(self) -> None:
         stdin = io.StringIO("{not json}\n" + json.dumps({"jsonrpc": "2.0", "id": 2, "method": "ping"}) + "\n")
         stdout = io.StringIO()

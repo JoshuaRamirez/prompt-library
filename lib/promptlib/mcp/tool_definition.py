@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable
 
+from ..errors import InvalidArgumentError
+
 Handler = Callable[[dict[str, Any]], Any]
 
 
@@ -26,4 +28,9 @@ class ToolDefinition:
         }
 
     def invoke(self, arguments: dict[str, Any]) -> Any:
+        """Check the schema's required arguments are present and non-blank, then call."""
+        for name in self.input_schema.get("required", ()):
+            value = arguments.get(name)
+            if value is None or (isinstance(value, str) and not value.strip()):
+                raise InvalidArgumentError(f"missing required argument: {name}")
         return self.handler(arguments)

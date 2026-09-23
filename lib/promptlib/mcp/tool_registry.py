@@ -10,11 +10,29 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..errors import InvalidArgumentError
 from ..service import PromptLibraryService
 from .tool_definition import ToolDefinition
 
 _STRING = {"type": "string"}
 _STRING_LIST = {"type": "array", "items": {"type": "string"}}
+_ID = {**_STRING, "description": "The prompt's id, e.g. 'code-review-checklist'."}
+_LIMIT = {"type": "integer", "minimum": 1, "description": "Return at most this many."}
+_INCLUDE_BODY = {"type": "boolean", "default": False, "description": "Include each prompt's full text."}
+
+
+def _record_properties() -> dict[str, Any]:
+    """The declared columns a caller may set. Any other property becomes a new column."""
+    return {
+        "title": {**_STRING, "description": "Short human-readable name."},
+        "prompt": {**_STRING, "description": "The prompt text. {{name}} marks a placeholder."},
+        "tags": {**_STRING_LIST, "description": "Keywords for finding it; a comma-separated string also works."},
+        "category": {**_STRING, "description": "One grouping, e.g. 'engineering'."},
+        "model": {**_STRING, "description": "The model the prompt is written for, if any."},
+        "notes": {**_STRING, "description": "When and how to use it."},
+        "source": {**_STRING, "description": "Where the prompt came from."},
+        "version": {**_STRING, "description": "The user's own version label for the prompt."},
+    }
 
 
 def _facets() -> dict[str, Any]:
@@ -23,6 +41,39 @@ def _facets() -> dict[str, Any]:
         "category": {**_STRING, "description": "Only prompts in this category."},
         "model": {**_STRING, "description": "Only prompts targeting this model."},
     }
+
+
+def _flag(args: dict[str, Any], name: str) -> bool:
+    """A boolean argument; the strings 'true' and 'false' are accepted, nothing else."""
+    value = args.get(name, False)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str) and value.strip().lower() in ("true", "false"):
+        return value.strip().lower() == "true"
+    raise InvalidArgumentError(f"{name} must be true or false, got {value!r}")
+
+
+def _tags(args: dict[str, Any]) -> list[str] | None:
+    """A tag list; a comma-separated string is split rather than read letter by letter."""
+    value = args.get("tags")
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return [tag.strip() for tag in value.split(",") if tag.strip()]
+    if isinstance(value, list) and all(isinstance(tag, str) for tag in value):
+        return value
+    raise InvalidArgumentError(f"tags must be a list of strings, got {value!r}")
+
+
+def _values(args: dict[str, Any]) -> dict[str, Any]:
+    value = args.get("values")
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise InvalidArgumentError(
+            "values must be an object mapping placeholder names to text, e.g. {\"language\": \"Go\"}"
+        )
+    return value
 
 
 class ToolRegistry:
@@ -54,13 +105,9 @@ class ToolRegistry:
                 input_schema={
                     "type": "object",
                     "properties": {
-                        "query": {**_STRING, "description": "Free-text query."},
-                        "limit": {"type": "integer", "minimum": 1, "default": 10},
-                        "include_body": {
-                            "type": "boolean",
-                            "default": False,
-                            "description": "Include full prompt text in each result.",
-                        },
+                        "query": {**_STRING, "description": "Words to look for."},
+                        "limit": {**_LIMIT, "default": 10},
+                        "include_body": _INCLUDE_BODY,
                         **_facets(),
                     },
                     "required": ["query"],
@@ -68,34 +115,34 @@ class ToolRegistry:
                 handler=lambda args: service.search(
                     query=str(args.get("query", "")),
                     limit=args.get("limit", 10),
-                    tags=args.get("tags"),
+                    tags=_tags(args),
                     category=args.get("category"),
                     model=args.get("model"),
-                    include_body=bool(args.get("include_body", False)),
+                    include_body=_flag(args, "include_body"),
                 ),
             ),
             ToolDefinition(
                 name="prompt_list",
                 description=(
-                    "List prompts in the library, newest columns included, optionally "
-                    "filtered by tag, category, or model. Returns summaries without the "
-                    "prompt body unless include_body is set."
+                    "List prompts in file order, optionally filtered by tag, category or "
+                    "model. Returns summaries without the prompt text unless include_body "
+                    "is set."
                 ),
                 input_schema={
                     "type": "object",
                     "properties": {
-                        "limit": {"type": "integer", "minimum": 1},
-                        "include_body": {"type": "boolean", "default": False},
+                        "limit": _LIMIT,
+                        "include_body": _INCLUDE_BODY,
                         **_facets(),
                     },
                 },
                 handler=lambda args: {
                     "prompts": service.list(
-                        tags=args.get("tags"),
+                        tags=_tags(args),
                         category=args.get("category"),
                         model=args.get("model"),
                         limit=args.get("limit"),
-                        include_body=bool(args.get("include_body", False)),
+                        include_body=_flag(args, "include_body"),
                     )
                 },
             ),
@@ -104,7 +151,7 @@ class ToolRegistry:
                 description="Fetch one prompt by id, including its full body and all columns.",
                 input_schema={
                     "type": "object",
-                    "properties": {"id": {**_STRING, "description": "Prompt id (slug)."}},
+                    "properties": {"id": _ID},
                     "required": ["id"],
                 },
                 handler=lambda args: service.get(str(args.get("id", ""))),
@@ -112,57 +159,46 @@ class ToolRegistry:
             ToolDefinition(
                 name="prompt_add",
                 description=(
-                    "Store a new prompt. Only 'prompt' is required; an id is derived from "
-                    "the title when omitted. Any property not in the declared schema becomes "
-                    "a new column in the CSV and is preserved."
+                    "Store a new prompt. Only 'prompt' is required. Without an id, one is "
+                    "made from the title, or from the text when there is no title. "
+                    "{{placeholders}} in the text are recorded as its variables. Any other "
+                    "property becomes a new column in the CSV and is kept; the result's "
+                    "new_columns lists any it created."
                 ),
                 input_schema={
                     "type": "object",
                     "properties": {
-                        "id": {**_STRING, "description": "Explicit id; derived from title if omitted."},
-                        "title": _STRING,
-                        "prompt": {**_STRING, "description": "The prompt text itself."},
-                        "tags": _STRING_LIST,
-                        "category": _STRING,
-                        "model": {**_STRING, "description": "Model this prompt is tuned for."},
-                        "notes": _STRING,
-                        "source": {**_STRING, "description": "Where the prompt came from."},
-                        "version": _STRING,
+                        "id": {**_STRING, "description": "Explicit id; made from the title if omitted."},
+                        **_record_properties(),
                     },
                     "required": ["prompt"],
                     "additionalProperties": True,
                 },
                 handler=lambda args: service.add(
-                    {key: value for key, value in args.items() if key != "id"},
+                    {key: (_tags(args) if key == "tags" else value) for key, value in args.items() if key != "id"},
                     prompt_id=args.get("id"),
                 ),
             ),
             ToolDefinition(
                 name="prompt_update",
                 description=(
-                    "Apply a partial update to a stored prompt. Supplied fields replace "
-                    "existing values; omitted fields are untouched. Unknown fields become "
-                    "new columns."
+                    "Change fields of a stored prompt. Supplied fields replace their values; "
+                    "omitted fields are untouched. A new prompt text re-reads its variables. "
+                    "Any other property becomes a new column; the result's new_columns lists "
+                    "any it created, which is how a misspelt field shows up."
                 ),
                 input_schema={
                     "type": "object",
                     "properties": {
-                        "id": _STRING,
-                        "title": _STRING,
-                        "prompt": _STRING,
-                        "tags": _STRING_LIST,
-                        "category": _STRING,
-                        "model": _STRING,
-                        "notes": _STRING,
-                        "source": _STRING,
-                        "version": _STRING,
+                        "id": _ID,
+                        **_record_properties(),
                     },
                     "required": ["id"],
                     "additionalProperties": True,
                 },
                 handler=lambda args: service.update(
                     str(args.get("id", "")),
-                    {key: value for key, value in args.items() if key != "id"},
+                    {key: (_tags(args) if key == "tags" else value) for key, value in args.items() if key != "id"},
                 ),
             ),
             ToolDefinition(
@@ -173,7 +209,7 @@ class ToolRegistry:
                 ),
                 input_schema={
                     "type": "object",
-                    "properties": {"id": _STRING},
+                    "properties": {"id": _ID},
                     "required": ["id"],
                 },
                 handler=lambda args: service.delete(str(args.get("id", ""))),
@@ -181,13 +217,14 @@ class ToolRegistry:
             ToolDefinition(
                 name="prompt_render",
                 description=(
-                    "Return a prompt body with its {{placeholders}} substituted from the "
-                    "supplied values. Reports which placeholders remain unfilled."
+                    "Return a prompt's text with its {{placeholders}} filled from values. "
+                    "Reports placeholders left unfilled, and values no placeholder used "
+                    "(often a misspelt name)."
                 ),
                 input_schema={
                     "type": "object",
                     "properties": {
-                        "id": _STRING,
+                        "id": _ID,
                         "values": {
                             "type": "object",
                             "description": "Placeholder name to replacement value.",
@@ -203,8 +240,8 @@ class ToolRegistry:
                 },
                 handler=lambda args: service.render(
                     str(args.get("id", "")),
-                    args.get("values") or {},
-                    strict=bool(args.get("strict", False)),
+                    _values(args),
+                    strict=_flag(args, "strict"),
                 ),
             ),
             ToolDefinition(
