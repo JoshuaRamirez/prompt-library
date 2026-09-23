@@ -42,6 +42,17 @@ test('the demo searches, chooses and fills in a prompt', async (t) => {
     assert.equal(await page.count('.hit'), 0);
     assert.match(await page.text('.empty'), /Nothing matches “zzz”/);
 
+    const assets = await page.evaluate(`(async () => {
+      const urls = [...document.querySelectorAll('link[rel=modulepreload], link[rel=icon], link[rel=preload]')].map((l) => l.href);
+      const statuses = await Promise.all(urls.map((u) => fetch(u).then((r) => r.status)));
+      await document.fonts.ready;
+      return { preloads: urls.length, bad: urls.filter((u, i) => statuses[i] !== 200),
+               grotesk: document.fonts.check('800 1rem "Schibsted Grotesk"'), mono: document.fonts.check('1rem "IBM Plex Mono"') };
+    })()`);
+    assert.ok(assets.preloads > 40, `every module is preloaded (${assets.preloads})`);
+    assert.deepEqual(assets.bad, [], 'every preloaded asset exists');
+    assert.ok(assets.grotesk && assets.mono, 'the self-hosted fonts load');
+
     const diagrams = await page.evaluate(`fetch('diagrams/').then((r) => r.status)`);
     assert.equal(diagrams, 200, 'the diagrams ship alongside the page');
     assert.deepEqual(await page.errors(), []);

@@ -47,7 +47,7 @@ export const sitePageTemplate = new Template<SitePageModel, SitePageController>(
             <div class="way">
               <h3>Ask Claude</h3>
               <p>Eight MCP tools let Claude search, read, save and fill prompts for you, and every
-                session starts with a one-line index of what you have.</p>
+                session starts with a short index of what you have, one line per prompt.</p>
               <p class="example">“Use my code review prompt on <code>api/users.py</code>.”</p>
             </div>
             <div class="way">
@@ -62,7 +62,8 @@ export const sitePageTemplate = new Template<SitePageModel, SitePageController>(
             </div>
             <div class="way">
               <h3>From a shell</h3>
-              <p>The same library through a CLI, for scripts and other tools.</p>
+              <p>The same library through a CLI, <code>bin/promptlib</code> in the plugin directory, for
+                scripts and other tools.</p>
               <pre><code>promptlib search code review
 promptlib render code-review-checklist \\
   --set language=Go --set file=main.go</code></pre>
@@ -92,7 +93,7 @@ promptlib render code-review-checklist \\
           </ul>
           <p>To skip the background service, set <code>SHARED_MCP_DISABLE=1</code> before starting Claude
             Code. Each session then runs its own copy on the Python standard library, and nothing is
-            downloaded. <a href=${m.repository + '#what-it-does-to-your-machine'}>Removal steps</a> are in the README.</p>
+            downloaded. <a href=${m.repository + '#how-this-plugin-runs-its-mcp-server-shared-background-service'}>Removal steps</a> are in the README.</p>
         </section>
 
         <section class="built" aria-labelledby="built-title">
@@ -104,7 +105,7 @@ promptlib render code-review-checklist \\
       </main>
 
       <footer class="colophon">
-        <p>MIT licence. Built with <a href=${m.framework}>vanilla-mvc</a>. Source and issues on
+        <p>MIT License. Built with <a href=${m.framework}>vanilla-mvc</a>. Source and issues on
           <a href=${m.repository}>GitHub</a>.</p>
       </footer>
     </div>

@@ -1,4 +1,17 @@
 /* Reset, tokens and type. Layout and components style themselves in their *.style.ts. */
+@font-face {
+  font-family: 'Schibsted Grotesk'; font-style: normal; font-weight: 400 800; font-display: swap;
+  src: url(fonts/schibsted-grotesk-latin.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 400; font-display: swap;
+  src: url(fonts/ibm-plex-mono-400-latin.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 500; font-display: swap;
+  src: url(fonts/ibm-plex-mono-500-latin.woff2) format('woff2');
+}
+
 *, *::before, *::after { box-sizing: border-box; }
 body, h1, h2, h3, p, ul, ol, dl, figure, pre { margin: 0; }
 button, input, select, textarea { font: inherit; color: inherit; }
