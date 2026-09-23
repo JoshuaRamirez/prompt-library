@@ -5,7 +5,7 @@ import type { SitePageModel } from './site-page.model.ts';
 export class SitePageController extends Controller<SitePageModel, ApplicationDomain> {
   protected createModel(): SitePageModel {
     return {
-      version: '0.1.2',
+      version: '0.1.3',
       repository: 'https://github.com/JoshuaRamirez/prompt-library',
       diagrams: 'diagrams/',
       framework: 'https://github.com/JoshuaRamirez/vanilla-mvc',

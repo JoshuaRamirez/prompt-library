@@ -13,4 +13,4 @@ The SearchStrategy port is the designated seam for a future vector-database
 backend; see docs/VECTOR-DB.md.
 """
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
