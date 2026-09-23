@@ -11,6 +11,10 @@ import shutil
 from typing import Any, Mapping, Sequence
 
 
+def plural(count: int, noun: str) -> str:
+    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
+
+
 class JsonFormatter:
     """Machine-readable rendering."""
 
@@ -32,17 +36,12 @@ class TextFormatter:
         lines = []
         id_width = max(len(str(row.get("id", ""))) for row in rows)
         for row in rows:
-            tags = ", ".join(row.get("tags") or [])
             facets = " ".join(
-                part
-                for part in (
-                    f"[{row['category']}]" if row.get("category") else "",
-                    f"#{tags}" if tags else "",
-                )
-                if part
+                ([f"[{row['category']}]"] if row.get("category") else [])
+                + [f"#{tag}" for tag in row.get("tags") or []]
             )
             score = f" ({row['score']:.2f})" if "score" in row else ""
-            title = str(row.get("title", "") or "")
+            title = str(row.get("title", "") or "") or "(untitled)"
             lines.append(f"{str(row.get('id','')):<{id_width}}  {title}{score}  {facets}".rstrip())
             if "prompt" in row:  # full records (--full) carry the body; summaries do not
                 body = str(row.get("prompt") or "")
@@ -53,10 +52,11 @@ class TextFormatter:
     def search(self, payload: Mapping[str, Any]) -> str:
         results = payload.get("results") or []
         matched = payload.get("matched", payload.get("count", 0))
-        header = (
-            f"{matched} of {payload.get('candidates', 0)} prompts matched "
-            f"'{payload.get('query', '')}' via {payload.get('strategy', '?')}"
-        )
+        candidates = payload.get("candidates", 0)
+        query = payload.get("query", "")
+        if not matched:
+            return f"nothing matched '{query}' in {plural(candidates, 'prompt')}; try other words, or `promptlib list`"
+        header = f"{matched} of {plural(candidates, 'prompt')} matched '{query}'"
         if payload.get("count", 0) < matched:
             header += f", showing the top {payload.get('count', 0)}"
         return f"{header}\n{self.summaries(results)}"

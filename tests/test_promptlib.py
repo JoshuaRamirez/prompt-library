@@ -438,6 +438,62 @@ class CliTests(ServiceTestCase):
             sys.stdout = original
         return code, buffer.getvalue()
 
+    def _run_err(self, *argv: str) -> tuple[int, str, str]:
+        err = io.StringIO()
+        original = sys.stderr
+        sys.stderr = err
+        try:
+            try:
+                code, out = self._run(*argv)
+            except SystemExit as exit_:
+                code, out = int(exit_.code or 0), ""
+        finally:
+            sys.stderr = original
+        return code, out, err.getvalue()
+
+    def test_json_is_accepted_after_the_command(self) -> None:
+        self._run("add", "--prompt", "x {{y}}", "--title", "T")
+        code, out = self._run("list", "--json")
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(out)[0]["id"], "t")
+        code, out = self._run("path", "--json")
+        self.assertEqual(json.loads(out)["csv_path"], str(self.csv_path))
+
+    def test_unknown_flag_names_the_subcommand(self) -> None:
+        code, _, err = self._run_err("search", "review", "--limt", "2")
+        self.assertEqual(code, 2)
+        self.assertIn("usage: promptlib search", err)
+        self.assertIn("unrecognized arguments: --limt 2", err)
+        _, _, err = self._run_err("render", "x", "language=Go")
+        self.assertIn("values go in as --set name=value", err)
+
+    def test_errors_are_plain_sentences(self) -> None:
+        code, _, err = self._run_err("get", "absent")
+        self.assertEqual(err, "promptlib: error: no prompt with id 'absent'\n")
+
+    def test_render_warns_about_unfilled_and_unused_names(self) -> None:
+        self._run("add", "--id", "r", "--prompt", "Review {{language}} code")
+        code, out, err = self._run_err("render", "r", "--set", "langauge=Go")
+        self.assertEqual(code, 0)
+        self.assertEqual(out, "Review {{language}} code\n")
+        self.assertIn("unfilled: language; not in this prompt: langauge", err)
+
+    def test_tag_filter_accepts_commas(self) -> None:
+        self._run("add", "--id", "a", "--prompt", "x", "--tags", "review,code")
+        self._run("add", "--id", "b", "--prompt", "y", "--tags", "review")
+        _, out = self._run("--json", "list", "--tag", "review,code")
+        self.assertEqual([row["id"] for row in json.loads(out)], ["a"])
+
+    def test_listing_shows_each_tag_and_untitled_rows(self) -> None:
+        self._run("add", "--id", "a", "--prompt", "x", "--tags", "review,code")
+        _, out = self._run("list")
+        self.assertIn("(untitled)  #review #code", out)
+
+    def test_no_command_prints_help(self) -> None:
+        code, out, _ = self._run_err()
+        self.assertEqual(code, 2)
+        self.assertIn("<command>", out)
+
     def test_add_then_get_body_only(self) -> None:
         code, _ = self._run("add", "--title", "CLI Prompt", "--prompt", "Body here", "--tags", "a,b")
         self.assertEqual(code, 0)
@@ -463,13 +519,13 @@ class CliTests(ServiceTestCase):
 
     def test_missing_prompt_exits_not_found(self) -> None:
         code, _ = self._run("get", "absent")
-        self.assertEqual(code, 2)
+        self.assertEqual(code, 3)
 
     def test_limited_search_reports_all_matches(self) -> None:
         self._run("add", "--title", "Review code", "--prompt", "review a")
         self._run("add", "--title", "Review docs", "--prompt", "review b")
         _, out = self._run("search", "review", "--limit", "1")
-        self.assertTrue(out.startswith("2 of 2 prompts matched 'review' via keyword, showing the top 1"), out)
+        self.assertTrue(out.startswith("2 of 2 prompts matched 'review', showing the top 1"), out)
 
     def test_nonpositive_limit_is_rejected(self) -> None:
         code, _ = self._run("list", "--limit", "-1")
