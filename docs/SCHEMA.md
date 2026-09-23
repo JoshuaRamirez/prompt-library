@@ -2,7 +2,9 @@
 
 One table, one CSV file. Default location
 `~/.claude/prompt-library/prompts.csv`, overridable by `$PROMPT_LIBRARY_CSV`
-(full path) or `$PROMPT_LIBRARY_HOME` (directory).
+(full path) or `$PROMPT_LIBRARY_HOME` (directory). The shared background MCP
+service takes these from the session that started it, so set them in your shell
+profile rather than per session.
 
 ## Declared columns
 
@@ -14,7 +16,7 @@ One table, one CSV file. Default location
 | `tags` | caller | Comma-separated retrieval tags. |
 | `category` | caller | Single grouping term. |
 | `model` | caller | Model the prompt is tuned for, if any. |
-| `variables` | derived | `{{placeholders}}` extracted from `prompt` on write. |
+| `variables` | derived | `{{placeholders}}` extracted from `prompt` on add, update and import, unless supplied. |
 | `notes` | caller | Provenance, caveats, usage guidance. |
 | `source` | caller | Where the prompt came from. |
 | `version` | caller | Caller-managed revision label. |
@@ -41,7 +43,7 @@ Callers see discovered columns as `extras` on the record.
 - **Advisory locking.** Mutations hold an exclusive `flock` on
   `prompts.csv.lock` and re-read from disk inside the lock, so concurrent Claude
   sessions cannot clobber each other with stale in-memory state.
-- **No field-size ceiling.** The CSV field limit is raised at import; long prompt
+- **No practical field-size ceiling.** The CSV field limit is raised to 2 GiB at import; long prompt
   bodies with embedded newlines, commas, and quotes round-trip exactly.
 - **Strings only.** Typing lives in the domain layer, not in the file. Any tool
   that reads the CSV sees plain text.

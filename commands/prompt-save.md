@@ -24,4 +24,4 @@ Steps:
      when a suitable one exists;
    - `source` — where it came from, if known.
    Add any further columns the material warrants; the table is open.
-3. Report the assigned id, title, tags, and any detected `{{variables}}`.
+3. Report the assigned id, title, tags, and any detected `{{placeholders}}`.

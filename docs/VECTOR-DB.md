@@ -27,7 +27,8 @@ in its payload. Consequences:
 - Selection is a construction-time argument (`PromptLibraryService.open(strategy=...)`).
 - No storage, domain, CLI, MCP, or command change is required to switch.
 - Result shape (`SearchHit`) is already score-plus-provenance, so hybrid
-  reranking has somewhere to put its evidence (`SearchHit.explain`).
+  reranking has somewhere to put its evidence (`SearchHit.explain`, though
+  `to_dict` does not expose it yet).
 
 The `index()` hook exists precisely because a dense backend needs precomputation
 that the lexical one does not. It is a no-op today, not an accident.

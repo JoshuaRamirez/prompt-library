@@ -13,9 +13,10 @@ Issues and pull requests are welcome.
   nothing on any failure.
 - `shared_mcp.py` is vendored from
   [shared-mcp](https://github.com/JoshuaRamirez/shared-mcp); send changes to it
-  there rather than editing the copy here. The copy currently carries one local
-  patch not yet upstream: the background service is kept alive only while
-  `shared_mcp.py` exists, so uninstalling the plugin stops it restarting.
+  there rather than editing the copy here. The copy carries two local patches
+  not yet upstream: the background service is kept alive only while
+  `shared_mcp.py` exists, so uninstalling the plugin stops it restarting; and
+  the first-run notice prints the full path of the `stop` command.
 
 ## Running the tests
 

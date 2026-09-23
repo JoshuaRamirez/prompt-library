@@ -12,7 +12,9 @@ shell work.
 ## Storage
 
 - Default file: `~/.claude/prompt-library/prompts.csv` (override with
-  `$PROMPT_LIBRARY_CSV` or `$PROMPT_LIBRARY_HOME`).
+  `$PROMPT_LIBRARY_CSV` or `$PROMPT_LIBRARY_HOME`). With the shared background service on (the default), the service takes these
+  from the session that started it, so set them in your shell profile rather than
+  per session.
 - Lives outside the plugin directory, so reinstalling the plugin never touches
   the data.
 - Declared columns: `id`, `title`, `prompt`, `tags`, `category`, `model`,
@@ -20,8 +22,9 @@ shell work.
 - The table is **open**: any additional field written becomes a new column and
   is preserved on every subsequent read and write. Do not ask permission to add
   a facet — write it and the column appears.
-- `id`, `created_at`, and `updated_at` are library-managed and cannot be set
-  through an update.
+- `id`, `created_at`, and `updated_at` are library-managed; an update that tries
+  to set one is refused. A write that creates a column reports it in
+  `new_columns`, which is how a misspelt field name shows up.
 
 ## Tools
 
@@ -47,7 +50,8 @@ shell work.
    (title ×3, tags ×2.5, category ×2, body ×1, notes ×0.5). An untitled prompt
    is effectively unfindable.
 4. **Placeholders use `{{name}}`.** The `variables` column is derived from the
-   body on add and on any body update — do not maintain it by hand.
+   body on add, on import, and on any body update — do not maintain it by hand.
+   `prompt_render` lists placeholders left unfilled and values nothing used.
 5. **Retrieve, then render.** When the user wants to *use* a stored prompt with
    specifics, call `prompt_render` rather than pasting the raw body and editing
    it yourself.
@@ -60,21 +64,23 @@ shell work.
 `${CLAUDE_PLUGIN_ROOT}/bin/promptlib` mirrors the tools:
 
 ```
-promptlib list [--tag T]... [--category C] [--limit N] [--full]
-promptlib search <query...> [--limit N] [--tag T]... [--full]
+promptlib [--csv PATH] <command> [--json] ...
+promptlib list [--tag T]... [--category C] [--model M] [--limit N] [--full]
+promptlib search <query...> [--limit N] [--tag T]... [--category C] [--full]
 promptlib get <id> [--body-only]
-promptlib add --title T --prompt TEXT [--tags a,b] [--set COLUMN=VALUE]...
-promptlib update <id> [--title T] [--prompt TEXT] [--set COLUMN=VALUE]...
+promptlib add --title T --prompt TEXT [--tags a,b] [--id ID] [--set COLUMN=VALUE]...
+promptlib update <id> [--title T] [--prompt TEXT] [--tags a,b] [--set COLUMN=VALUE]...
 promptlib delete <id> [--yes]
-promptlib render <id> --set name=value...
+promptlib render <id> --set name=value... [--strict]
 promptlib stats
 promptlib path                      # print the CSV location
-promptlib import <file.json>        # upsert an array of records by id
+promptlib import <file.json | ->    # add new records, update existing ids field by field
 ```
 
 `--prompt -` (or omitting `--prompt`) reads the body from stdin, which is the
-practical way to store a multi-line prompt from the shell. `promptlib --json <subcommand>`
-(the flag goes before the subcommand) emits the same payload the MCP tools return.
+practical way to store a multi-line prompt from the shell. `--json`, before or
+after the command, emits the same payload the MCP tools return. Exit status: 0
+ok, 1 error, 2 bad command line, 3 no prompt with that id.
 
 ## Extending retrieval
 
