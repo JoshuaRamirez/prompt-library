@@ -7,7 +7,7 @@ const { tip, untip, esc } = PL;
 
 // Column facts for the record ring (prompt_schema.py + SCHEMA.md).
 const COL = {
-  id:         { by: "library", type: "scalar", note: "Slug from the title when not supplied. Immutable: silently dropped from updates." },
+  id:         { by: "library", type: "scalar", note: "Slug from the title when not supplied. Immutable: an update that sets it is refused." },
   title:      { by: "caller", type: "scalar", weight: 3, note: "Short descriptive name. Carries the most search weight." },
   prompt:     { by: "caller", type: "scalar", weight: 1, note: "The prompt text. Required and non-empty. {{variables}} are parsed from it." },
   tags:       { by: "caller", type: "list", weight: 2.5, note: "Retrieval tags. A facet filter for list and search." },

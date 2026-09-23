@@ -1,13 +1,24 @@
 /* Shared chart tokens. Categorical slots follow the validated dataviz reference
-   palette (light and dark stepped separately, never auto-flipped). */
+   palette (light and dark stepped separately, never auto-flipped), checked against
+   these chart surfaces: #fcfcfb light, #172036 dark. Page and ink colours match
+   the project page in site/. */
+@font-face {
+  font-family: 'Schibsted Grotesk'; font-style: normal; font-weight: 400 800; font-display: swap;
+  src: url(../fonts/schibsted-grotesk-latin.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 400; font-display: swap;
+  src: url(../fonts/ibm-plex-mono-400-latin.woff2) format('woff2');
+}
 :root {
   color-scheme: light;
-  --surface-0: #f4f3ef;
+  --surface-0: #f4f6f5;
   --surface-1: #fcfcfb;
-  --text-primary: #1a1a19;
-  --text-secondary: #55544e;
-  --text-muted: #7c7b73;
-  --rule: #e2e1da;
+  --text-primary: #14203a;
+  --text-secondary: #4b566d;
+  --text-muted: #6f7a8f;
+  --rule: #d4dcdf;
+  --link: #1b48c9;
   --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
   --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7; --s8: #e34948;
   --node: #55544e;
@@ -15,15 +26,16 @@
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --surface-0: #121211;
-    --surface-1: #1a1a19;
-    --text-primary: #ffffff;
-    --text-secondary: #c3c2b7;
-    --text-muted: #96958c;
-    --rule: #34342f;
+    --surface-0: #0f1626;
+    --surface-1: #172036;
+    --text-primary: #e6ebf3;
+    --text-secondary: #a3aec3;
+    --text-muted: #8390a8;
+    --rule: #273252;
+    --link: #8eaeff;
     --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
     --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
-    --node: #c3c2b7;
+    --node: #a3aec3;
   }
 }
 
@@ -32,8 +44,18 @@ body {
   margin: 0;
   background: var(--surface-0);
   color: var(--text-primary);
-  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+  font: 14px/1.5 'Schibsted Grotesk', system-ui, sans-serif;
 }
+code { font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace; font-size: 0.92em; }
+.masthead {
+  max-width: 1480px; margin: 0 auto; padding: 22px 28px 0;
+  display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 12px;
+}
+.masthead .wordmark { font-weight: 800; font-size: 17px; color: var(--text-primary); text-decoration: none; letter-spacing: -0.01em; }
+.masthead nav { display: flex; gap: 22px; }
+.masthead nav a { color: var(--text-secondary); text-decoration: none; font-size: 15px; }
+.masthead nav a:hover { color: var(--text-primary); text-decoration: underline; }
+a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
 .viz-root {
   max-width: 1480px;
   margin: 24px auto;
@@ -42,7 +64,7 @@ body {
   border: 1px solid var(--rule);
   border-radius: 12px;
 }
-header h1 { margin: 0 0 4px; font-size: 20px; font-weight: 600; }
+header h1 { margin: 0 0 6px; font-size: 30px; line-height: 1.1; font-weight: 800; letter-spacing: -0.02em; }
 header .sub { margin: 0; color: var(--text-secondary); max-width: 900px; }
 nav.pages { display: flex; gap: 6px; margin: 0 0 16px; flex-wrap: wrap; }
 nav.pages a {

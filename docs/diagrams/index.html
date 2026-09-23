@@ -3,18 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>prompt-library · how it works, in three diagrams</title>
+<title>prompt-library: how it works, in three diagrams</title>
+<meta name="description" content="How the prompt-library Claude Code plugin works, in three interactive diagrams traced from its source.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="viz.css">
 </head>
 <body>
+<header class="masthead">
+  <a class="wordmark" href="../">prompt-library</a>
+  <nav aria-label="Site">
+    <a href="../">Home</a>
+    <a href="https://github.com/JoshuaRamirez/prompt-library">Source</a>
+  </nav>
+</header>
 <main class="viz-root">
   <header>
-    <h1>prompt-library, in three diagrams</h1>
+    <h1>How it works, in three diagrams</h1>
     <p class="sub">All three are traced from the plugin's source; file paths are in the tooltips and table views.
       Use cases keep the same colour in every diagram.</p>
   </header>
   <nav class="pages" aria-label="Sections" style="margin-top:14px">
-    <a href="../">Home</a>
     <a href="#flow">1 · Control flow (Sankey)</a>
     <a href="#pack">2 · Use-case decomposition (circle packing)</a>
     <a href="#sun">3 · Data model (sunburst)</a>

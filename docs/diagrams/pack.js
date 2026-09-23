@@ -107,8 +107,9 @@ const DECOMP = {
       "Wait for explicit confirmation",
       "prompt_delete returns the removed record",
     ]),
-    S("Managed column in an update", "fail", "docs/SCHEMA.md · Prompt.merged_with", [
-      "id, created_at, updated_at are dropped from the changes",
+    S("Managed column in an update", "fail", "docs/SCHEMA.md · service.py _checked_fields", [
+      "An update naming id, created_at or updated_at is refused",
+      "The error names the column; nothing is written",
     ]),
   ],
   inspect: [
@@ -137,12 +138,17 @@ const DECOMP = {
     ]),
   ],
   import: [
-    S("Upsert a batch", "main", "cli/main.py · PromptRepository.upsert_many", [
+    S("Import a batch", "main", "cli/main.py · service.import_rows · PromptRepository.upsert_many", [
       "promptlib import file.json (array of records)",
-      "Match on id, replacing existing records",
+      "Match on id; an existing prompt changes only in the fields supplied",
       "No id: slug from the title",
+      "A new body brings its {{placeholders}} as variables",
       "One locked, atomic write for the whole batch",
-      "Report the written count and ids",
+      "Report the count and ids",
+    ]),
+    S("Invalid record", "fail", "PromptRepository.upsert_many", [
+      "Name the record by position and id",
+      "Write nothing from the batch",
     ]),
   ],
 };
