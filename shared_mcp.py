@@ -24,7 +24,9 @@ Flags on connect: --env KEY (forward a declared env var; repeatable), --port P, 
   --serialize (one tool call at a time, for servers written for a single client),
   --per-session (keep the launcher but never share: cwd-dependent or browser-attached servers).
 Other verbs: ensure|status|stop|logs --name N ; gateway --spec FILE (internal).
-State lives in ~/.local/state/shared-mcp/<name>/ (spec.json 0600, gateway.log).
+State lives in ~/.local/state/shared-mcp/<name>/ — directory 0700, every file 0600, because
+spec.json and the gateway log can carry whatever the declared --env vars hold. The gateway
+runs under umask 077 so the original server inherits the same default.
 Registers with `svc` (~/.config/svc/services.d) when that console exists.
 """
 from __future__ import annotations
@@ -47,7 +49,7 @@ import time
 import zlib
 from pathlib import Path
 
-VERSION = "0.3.1"
+VERSION = "0.3.2"
 HOME = Path.home()
 STATE_ROOT = Path(os.environ.get("SHARED_MCP_STATE") or
                   (Path(os.environ["LOCALAPPDATA"]) / "shared-mcp" if os.name == "nt" and os.environ.get("LOCALAPPDATA")
@@ -62,10 +64,63 @@ def log(*a: object) -> None:
 
 
 # ----------------------------------------------------------------- spec / paths
+FILE_MODE, DIR_MODE = 0o600, 0o700      # this state is one user's; nothing here is ever group/world readable
+_HARDENED: set = set()
+
+
+def _chmod(p: Path, mode: int) -> None:
+    try:
+        os.chmod(p, mode)
+    except OSError:
+        pass
+
+
 def state_dir(name: str) -> Path:
     d = STATE_ROOT / name
     d.mkdir(parents=True, exist_ok=True)
+    if str(d) not in _HARDENED:             # mkdir's mode is masked by umask and only applies on creation
+        _chmod(STATE_ROOT, DIR_MODE); _chmod(d, DIR_MODE)
+        _HARDENED.add(str(d))
     return d
+
+
+def secure_write(p: Path, data: str | bytes) -> Path:
+    """Write a file that is 0600 from the moment it exists — not 0644 with a chmod after it.
+
+    O_CREAT's mode applies only when the file is created, so an existing file that some earlier
+    version (or a supervisor) made world-readable is also chmod'ed back."""
+    b = data if isinstance(data, bytes) else data.encode()
+    fd = os.open(p, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, FILE_MODE)
+    try:
+        os.write(fd, b)
+    finally:
+        os.close(fd)
+    _chmod(p, FILE_MODE)
+    return p
+
+
+def harden_state(name: str) -> None:
+    """Repair the whole state directory. Called before every start: launchd, systemd and an older
+    copy of this file can all re-create gateway.log at the ambient umask, so a one-off chmod does
+    not hold. This runs on every connect, so it does."""
+    d = state_dir(name)
+    _chmod(d, DIR_MODE)
+    try:
+        for f in d.iterdir():
+            _chmod(f, FILE_MODE if f.is_file() else DIR_MODE)   # ensure.lock is a directory
+    except OSError:
+        pass
+
+
+def ensure_log(name: str) -> Path:
+    """Create gateway.log 0600 BEFORE the supervisor opens it: launchd and systemd append to an
+    existing file and only create (at their own umask) when it is missing."""
+    logp = state_dir(name) / "gateway.log"
+    if not logp.exists():
+        secure_write(logp, b"")
+    else:
+        _chmod(logp, FILE_MODE)
+    return logp
 
 
 def owner_tag() -> str:
@@ -102,13 +157,7 @@ def load_spec(name: str) -> dict | None:
 
 
 def save_spec(spec: dict) -> Path:
-    p = state_dir(spec["name"]) / "spec.json"
-    p.write_text(json.dumps(spec, indent=2) + "\n")
-    try:
-        os.chmod(p, 0o600)
-    except OSError:
-        pass
-    return p
+    return secure_write(state_dir(spec["name"]) / "spec.json", json.dumps(spec, indent=2) + "\n")
 
 
 def venv_python() -> Path:
@@ -201,7 +250,7 @@ def start_mac(spec: dict) -> None:
         if _launchctl("print", f"{domain}/{lab}")[0] != 0:
             break
         time.sleep(0.25)
-    logp = state_dir(name) / "gateway.log"
+    harden_state(name); logp = ensure_log(name)
     argv = gateway_argv(spec)
     xml = "".join(f"<string>{_html.escape(a, quote=False)}</string>" for a in argv)
     path_env = spec.get("path") or os.environ.get("PATH", "/usr/bin:/bin")   # the session's PATH, venv NOT prepended
@@ -212,8 +261,11 @@ def start_mac(spec: dict) -> None:
   <key>ProgramArguments</key><array>{xml}</array>
   <key>WorkingDirectory</key><string>{_html.escape(spec.get("cwd") or str(HOME), quote=False)}</string>
   <key>ProcessType</key><string>Interactive</string>
-  <key>KeepAlive</key><dict><key>PathState</key><dict><key>{_html.escape(str(Path(spec["launcher"]).resolve()), quote=False)}</key><true/></dict></dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
   <key>ThrottleInterval</key><integer>5</integer>
+  <key>Umask</key><integer>63</integer>
+  <!-- 63 = 0o077. launchd reads this key as decimal, so 077 here would mean 0o115. -->
   <key>StandardOutPath</key><string>{logp}</string>
   <key>StandardErrorPath</key><string>{logp}</string>
   <key>EnvironmentVariables</key><dict>
@@ -245,15 +297,15 @@ def start_systemd(spec: dict) -> None:
     unit_dir = HOME / ".config" / "systemd" / "user"
     unit_dir.mkdir(parents=True, exist_ok=True)
     unit = unit_dir / f"shared-mcp-{spec['name']}.service"
-    logp = state_dir(spec["name"]) / "gateway.log"
+    harden_state(spec["name"]); logp = ensure_log(spec["name"])
     unit.write_text(f"""[Unit]
 Description=shared-mcp gateway: {spec['name']}
-ConditionPathExists={Path(spec["launcher"]).resolve()}
 [Service]
 ExecStart={' '.join(shlex.quote(a) for a in gateway_argv(spec))}
 WorkingDirectory={spec.get('cwd') or HOME}
 Restart=always
 RestartSec=3
+UMask=0077
 StandardOutput=append:{logp}
 StandardError=append:{logp}
 [Install]
@@ -273,14 +325,18 @@ def stop_systemd(name: str) -> None:
 def start_detached(spec: dict) -> None:
     """No service manager: detached process + pid file. `ensure` restarts it when dead."""
     stop_detached(spec["name"])
-    logp = state_dir(spec["name"]) / "gateway.log"
-    kw: dict = {"stdout": open(logp, "ab"), "stderr": subprocess.STDOUT, "stdin": subprocess.DEVNULL, "cwd": spec.get("cwd") or None}
+    harden_state(spec["name"]); logp = ensure_log(spec["name"])
+    logfd = os.open(logp, os.O_WRONLY | os.O_CREAT | os.O_APPEND, FILE_MODE)
+    kw: dict = {"stdout": logfd, "stderr": subprocess.STDOUT, "stdin": subprocess.DEVNULL, "cwd": spec.get("cwd") or None}
     if IS_WIN:
         kw["creationflags"] = 0x00000008 | 0x00000200  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
     else:
         kw["start_new_session"] = True
-    p = subprocess.Popen(gateway_argv(spec), **kw)
-    (state_dir(spec["name"]) / "gateway.pid").write_text(str(p.pid))
+    try:
+        p = subprocess.Popen(gateway_argv(spec), **kw)
+    finally:
+        os.close(logfd)
+    secure_write(state_dir(spec["name"]) / "gateway.pid", str(p.pid))
 
 
 def _pid_is_gateway(pid: int) -> bool:
@@ -376,7 +432,7 @@ def rotate_log(name: str) -> None:
             with open(logp, "rb") as fh:
                 fh.seek(-2_000_000, os.SEEK_END)
                 tail = fh.read().split(b"\n", 1)[-1]
-            logp.write_bytes(tail)
+            secure_write(logp, tail)
     except OSError:
         pass
 
@@ -408,7 +464,8 @@ class _Lock:
         deadline = time.time() + self.wait_s
         while time.time() < deadline:
             try:
-                self.path.mkdir(); self.held = True; _HELD_LOCKS.add(str(self.path)); return self
+                self.path.mkdir(mode=DIR_MODE); _chmod(self.path, DIR_MODE)   # inside a 0700 parent, but private on its own too
+                self.held = True; _HELD_LOCKS.add(str(self.path)); return self
             except FileExistsError:
                 try:
                     if time.time() - self.path.stat().st_mtime > 600:
@@ -431,7 +488,10 @@ def _flapping(name: str, spec: dict) -> bool:
     """True if this exact definition was replaced by another within the last 10 minutes —
     two sessions declaring different env/commands would otherwise restart the gateway forever."""
     hist_p = state_dir(name) / "spec-history.json"
-    key = json.dumps([spec["command"], spec["env"], spec.get("fingerprint"), spec.get("launcher")], sort_keys=True)
+    # Hashed, not stored: this file only ever tests two definitions for equality, and the
+    # definition contains the values of the declared --env vars (tokens, cookies, keys).
+    key = hashlib.sha256(json.dumps([spec["command"], spec["env"], spec.get("fingerprint"),
+                                     spec.get("launcher")], sort_keys=True).encode()).hexdigest()
     try:
         hist = json.loads(hist_p.read_text())
     except Exception:  # noqa: BLE001
@@ -440,7 +500,7 @@ def _flapping(name: str, spec: dict) -> bool:
     hist = [h for h in hist if now - h["t"] < 600][-6:]
     seen_recently = any(h["k"] == key for h in hist) and any(h["k"] != key for h in hist)
     hist.append({"k": key, "t": now})
-    hist_p.write_text(json.dumps(hist))
+    secure_write(hist_p, json.dumps(hist))
     return seen_recently
 
 
@@ -454,6 +514,7 @@ def ensure(spec: dict, wait: float = 60, restart_ok: bool = True) -> dict:
 def _ensure_locked(spec: dict, wait: float, restart_ok: bool, lk: "_Lock") -> dict:
     """Make the gateway for spec run with THIS spec; returns its health card or raises."""
     name = spec["name"]
+    harden_state(name)        # every connect, not just every start: adopting a live gateway repairs too
     current = load_spec(name)
     if not restart_ok and current and Path(current.get("launcher", "")).exists():
         # A reconnecting bridge revives with the NEWEST definition on disk, never its own
@@ -492,7 +553,7 @@ def _ensure_locked(spec: dict, wait: float, restart_ok: bool, lk: "_Lock") -> di
         log(f"first run for '{name}': installing a shared background service so every Claude session uses ONE "
             f"copy of this server. It creates {STATE_ROOT}/venv and {state_dir(name)}, listens on 127.0.0.1:{port} only, "
             f"and is kept alive by {'launchd' if IS_MAC else 'systemd --user' if (not IS_WIN and _systemd_user_available()) else 'a detached process'}. "
-            f"Opt out: SHARED_MCP_DISABLE=1, or `python3 {shlex.quote(str(Path(__file__).resolve()))} stop --name {name}`.")
+            f"Opt out: SHARED_MCP_DISABLE=1, or `python3 {Path(__file__).name} stop --name {name}`.")
     else:
         log(f"starting gateway '{name}' on 127.0.0.1:{port}")
     ensure_venv(); lk.touch()
@@ -700,6 +761,7 @@ class Bridge:
 
 # ----------------------------------------------------------------- gateway (runs in venv)
 def run_gateway(spec_path: str) -> int:
+    os.umask(0o077)                    # anything this process or its child creates is the user's alone
     import asyncio
     import contextlib
 
@@ -932,6 +994,20 @@ def fingerprint(command: list[str], launcher: Path, cwd: str | None = None) -> s
     return h.hexdigest()[:16]
 
 
+def refresh_fingerprint(spec: dict) -> dict:
+    """`ensure --name` means "run with the CURRENT version on disk".
+
+    The saved spec's fingerprint is by definition the one that is already running, and
+    _ensure_locked compares the saved spec with itself, so an upgraded launcher or an edited
+    server file could never be noticed: the verb adopted the old gateway and reported success.
+    Recompute the content identity from the launcher path the spec already names — the path stays
+    the plugin's, only its bytes are re-read."""
+    lp = Path(spec.get("launcher", ""))
+    if lp.is_file():
+        spec["fingerprint"] = fingerprint(spec["command"], lp.resolve(), spec.get("cwd"))
+    return spec
+
+
 def build_spec(opts: dict, command: list[str]) -> dict:
     name = opts.get("name")
     if not name:                                  # derive something unique, not just a basename
@@ -989,7 +1065,7 @@ def main(argv: list[str]) -> int:
         if not Path(spec["launcher"]).exists():
             log(f"launcher {spec['launcher']} no longer exists (plugin removed?); run `stop --name {name}`")
             return 1
-        h = ensure(spec)
+        h = ensure(refresh_fingerprint(spec))
         print(json.dumps(h, indent=2))
         return 0
     if verb == "status":
